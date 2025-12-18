@@ -49,26 +49,19 @@ const segments = computed(() => {
 </script>
 
 <template>
+
   <div
-    class="h-full w-16 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800">
+    class="h-full w-6 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 mr-2">
     <div class="text-xs text-center py-2 font-bold text-gray-500">24h</div>
     <div class="flex-1 flex flex-col w-full relative h-full">
       <div v-for="(segment, index) in segments" :key="index"
         class="w-full flex-1 cursor-pointer transition-colors hover:opacity-80 relative group min-h-[11px]"
         :class="segment.color" @click="$emit('select-time', segment.start)">
         <div
-          class="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black text-white text-sm px-2 py-8s rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-          {{ segment.label }} - {{ segment.maxProb }}%
+          class="absolute left-full top-1/2 -translate-y-1/2 bg-black text-white text-sm px-2 py-8s rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
         </div>
-      </div>
-
-      <div
-        class="absolute inset-0 pointer-events-none flex flex-col justify-between text-[10px] text-gray-400 font-mono pl-1 h-full">
-        <span v-for="h in [0, 6, 12, 18]" :key="h" class="bg-white/50 dark:bg-black/50 px-0.5 rounded w-fit z-10">
-          {{ h.toString().padStart(2, '0') }}:00
-        </span>
-        <span class="bg-white/50 dark:bg-black/50 px-0.5 rounded w-fit z-10">23:59</span>
       </div>
     </div>
   </div>
+
 </template>

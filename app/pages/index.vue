@@ -1,175 +1,203 @@
 <script setup lang="ts">
-import { format, isSameDay } from 'date-fns'
-import type { PriorityLog } from '~/types'
+import { format } from 'date-fns'
+import type { PriorityLog, Camera } from '~/types'
 
-const { cameras, logs, toggleFavorite } = useCameraData()
+const { cameras, logs, groups, toggleGroup } = useCameraData()
 
-const viewMode = ref<'favorites' | 'all'>('favorites')
+// UI Persistence
+const selectedGroup = useLocalStorage('selected-group', 'Favoritas')
+const isLogsOpen = useLocalStorage('logs-open', false)
+
+// Search
 const search = ref('')
-const filterOptions = [
-  { label: 'Todas', value: 'all' },
-  { label: 'Favoritas', value: 'favorites' },
-  { label: 'Online', value: 'online' },
-  { label: 'Offline', value: 'offline' }
-]
-const filter = ref(filterOptions[0])
 
-const selectedTime = ref<Date | null>(null)
-const isLogsOpen = ref(false)
+// Pagination
+const currentPage = ref(0)
+const itemsPerPage = 2
 
-const displayedCameras = computed(() => {
+// Watch group or search change to reset page
+watch([selectedGroup, search], () => {
+  currentPage.value = 0
+})
+
+const filteredCameras = computed(() => {
   let result = cameras.value
 
-  if (viewMode.value === 'favorites') {
-    result = result.filter(c => c.isFavorite)
-  } else {
-    if (search.value) {
-      const s = search.value.toLowerCase()
-      result = result.filter(c => c.name.toLowerCase().includes(s) || c.location.toLowerCase().includes(s))
-    }
-    if (filter.value.value === 'online') result = result.filter(c => c.status === 'online')
-    if (filter.value.value === 'offline') result = result.filter(c => c.status === 'offline')
-    if (filter.value.value === 'favorites') result = result.filter(c => c.isFavorite)
+  // Filter by Group
+  if (selectedGroup.value !== 'Todas') {
+    result = result.filter(c => c.groups.includes(selectedGroup.value))
+  }
+
+  // Filter by Search
+  if (search.value) {
+    const s = search.value.toLowerCase()
+    result = result.filter(c => c.name.toLowerCase().includes(s) || c.location.toLowerCase().includes(s))
   }
 
   return result
 })
 
-const recentLogs = computed(() => logs.value.slice(0, 10))
+const totalPages = computed(() => Math.ceil(filteredCameras.value.length / itemsPerPage))
 
+const displayedCameras = computed(() => {
+  const start = currentPage.value * itemsPerPage
+  return filteredCameras.value.slice(start, start + itemsPerPage)
+})
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value - 1) currentPage.value++
+}
+
+const prevPage = () => {
+  if (currentPage.value > 0) currentPage.value--
+}
+
+// Logs Logic
+const selectedTime = ref<Date | null>(null)
+const recentLogs = computed(() => logs.value.slice(0, 20))
 const filteredLogs = computed(() => {
   if (!selectedTime.value) return recentLogs.value
-
-  // Show logs around the selected time (+- 30 mins)
   const start = new Date(selectedTime.value.getTime() - 30 * 60 * 1000)
   const end = new Date(selectedTime.value.getTime() + 30 * 60 * 1000)
-
   return logs.value.filter(log => {
     const logTime = new Date(log.timestamp)
     return logTime >= start && logTime <= end
   })
 })
 
-// Actions
 const handleTimeSelection = (time: Date) => {
   selectedTime.value = time
-  // Auto-open logs when a specific time is selected
   isLogsOpen.value = true
 }
 
 const clearSelection = () => {
   selectedTime.value = null
-  // Optional: close logs or keep open? User might want to see "recent" logs. 
-  // keeping it open or letting user close it is better.
 }
 
-const toggleLogs = () => {
-  isLogsOpen.value = !isLogsOpen.value
+// Camera Details
+const selectedCamera = ref<Camera | null>(null)
+const isDetailsOpen = ref(false)
+
+const openDetails = (camera: Camera) => {
+  selectedCamera.value = camera
+  isDetailsOpen.value = true
 }
 
+const openLogDetails = (log: PriorityLog) => {
+  const cam = cameras.value.find(c => c.id === log.cameraId)
+  if (cam) openDetails(cam)
+}
 
+const test = () => {
+  console.log('test')
+  console.log(selectedGroup.value)
+  console.log(groups.value)
+  console.log(groups)
+}
 </script>
 
 <template>
   <UDashboardPanel>
-    <UDashboardNavbar title="Monitoramento de Fogo" :ui="{ right: 'gap-3' }">
+    <UDashboardNavbar title="Monitoramento de Fogo">
       <template #right>
         <div class="flex items-center gap-2">
-          <UButton v-if="viewMode === 'all'" icon="i-heroicons-star" label="Ver Favoritas" color="neutral"
-            variant="ghost" @click="viewMode = 'favorites'" />
-          <UButton v-else icon="i-heroicons-video-camera" label="Todas as Câmeras" color="neutral" variant="ghost"
-            @click="viewMode = 'all'" />
+          <!-- Search -->
+          <UInput v-model="search" icon="i-heroicons-magnifying-glass" placeholder="Buscar..." class="w-48" />
+          <USelectMenu v-model="selectedGroup" :items="['Todas', ...groups]" class="w-48">
+          </USelectMenu>
+          <UButton icon="i-heroicons-list-bullet" color="neutral" :variant="isLogsOpen ? 'solid' : 'ghost'"
+            @click="isLogsOpen = !isLogsOpen" />
         </div>
-
-        <UButton icon="i-heroicons-list-bullet" color="neutral" variant="ghost" @click="toggleLogs"
-          :variant="isLogsOpen ? 'solid' : 'ghost'">
-        </UButton>
       </template>
     </UDashboardNavbar>
 
-    <UDashboardToolbar>
-      <template #left>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ viewMode === 'favorites' ? 'Câmeras Favoritas' : 'Todas as Câmeras' }}
-        </h2>
-      </template>
+    <div class="flex-1 flex overflow-hidden relative">
+      <!-- Main Content: Cameras -->
+      <div class="flex-1 flex flex-col p-6 bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
 
-      <template #right>
-        <div v-if="viewMode === 'all'" class="flex items-center gap-2">
-          <UInput v-model="search" icon="i-heroicons-magnifying-glass" placeholder="Buscar..." class="w-48" />
-          <USelectMenu v-model="filter" :options="filterOptions" option-attribute="label" class="w-32">
-            <template #label>
-              {{ filter.label }}
-            </template>
-          </USelectMenu>
-        </div>
-      </template>
-    </UDashboardToolbar>
+        <div class="flex-1 flex items-center justify-center relative">
+          <!-- Left Arrow -->
+          <UButton v-if="currentPage > 0" icon="i-heroicons-chevron-left"
+            class="absolute left-0 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
+            @click="prevPage" />
 
-    <div class="flex-1 p-4 overflow-hidden">
-      <div class="h-full flex gap-4 transition-all duration-300">
-        <!-- Left: Timeline (Always Visible) -->
-        <Timeline :logs="logs" @select-time="handleTimeSelection" />
+          <!-- Camera Grid (Slide) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-h-[80vh]">
+            <TransitionGroup name="fade">
+              <div v-for="camera in displayedCameras" :key="camera.id" class="h-full flex flex-col">
+                <CameraCard :camera="camera" class="h-full flex flex-col justify-between" @toggle-group="toggleGroup"
+                  @open-details="openDetails" />
+              </div>
+            </TransitionGroup>
 
-        <!-- Center: Camera Grid -->
-        <div class="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0 transition-all">
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-500">{{ displayedCameras.length }} câmeras listadas</span>
+            <!-- Empty State -->
+            <div v-if="displayedCameras.length === 0"
+              class="col-span-3 flex flex-col items-center justify-center text-gray-400">
+              <UIcon name="i-heroicons-video-camera-slash" class="w-16 h-16 mb-4" />
+              <p class="text-xl">Nenhuma câmera encontrada.</p>
+            </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            <CameraCard v-for="camera in displayedCameras" :key="camera.id" :camera="camera"
-              @toggle-favorite="toggleFavorite" />
-          </div>
-
-          <div v-if="displayedCameras.length === 0"
-            class="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
-            <UIcon name="i-heroicons-video-camera-slash" class="w-12 h-12 mb-2" />
-            <p>Nenhuma câmera encontrada.</p>
-          </div>
+          <!-- Right Arrow -->
+          <UButton v-if="currentPage < totalPages - 1" icon="i-heroicons-chevron-right"
+            class="absolute right-0 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
+            @click="nextPage" />
         </div>
 
-        <!-- Right: Collapsible Logs Sidebar -->
-        <div
-          class="flex-none flex flex-col gap-4 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden transition-all duration-300 ease-in-out"
-          :class="[isLogsOpen ? 'w-80 pl-4 opacity-100' : 'w-0 pl-0 opacity-0']">
-          <div class="flex items-center justify-between sticky top-0 py-2 z-10 w-80">
-            <h3 class="text-base font-medium text-gray-700 dark:text-gray-200 truncate">
-              {{ selectedTime ? 'Logs no Momento' : 'Logs Recentes' }}
-            </h3>
-            <div class="flex items-center gap-1">
-              <UButton v-if="selectedTime" icon="i-heroicons-arrow-path" size="xs" color="gray" variant="ghost"
-                title="Resetar tempo" @click="clearSelection" />
-              <UButton icon="i-heroicons-x-mark" size="xs" color="gray" variant="ghost" @click="isLogsOpen = false" />
-            </div>
-          </div>
+        <!-- Pagination Indicators -->
+        <div v-if="totalPages > 1" class="flex justify-center mt-4 gap-2">
+          <div v-for="i in totalPages" :key="i" class="w-2 h-2 rounded-full transition-colors cursor-pointer"
+            :class="(i - 1) === currentPage ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-700'"
+            @click="currentPage = i - 1" />
+        </div>
+      </div>
 
-          <div class="space-y-3 w-80 overflow-y-auto pb-4">
-            <div v-for="log in filteredLogs" :key="log.id"
-              class="p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
-              <div class="flex items-start justify-between mb-1">
-                <span class="text-xs font-mono text-gray-500">
-                  {{ format(new Date(log.timestamp), 'HH:mm:ss') }}
-                </span>
-                <UBadge :color="log.probability > 80 ? 'error' : log.probability > 50 ? 'warning' : 'success'"
-                  variant="subtle" size="xs">
-                  {{ log.probability }}%
-                </UBadge>
-              </div>
-              <div class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ log.cameraName }}
-              </div>
-              <div class="text-xs text-gray-500 mt-1">
-                Probabilidade de fogo detectada.
-              </div>
-            </div>
+      <!-- Timeline (Right Side) -->
+      <Timeline :logs="logs" @select-time="handleTimeSelection" />
 
-            <div v-if="filteredLogs.length === 0" class="text-center py-8 text-gray-500 text-sm">
-              Nenhum log encontrado.
+      <!-- Logs Panel -->
+      <div v-if="isLogsOpen"
+        class="w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col transition-all">
+        <div class="p-3 border-b flex items-center justify-between">
+          <h3 class="font-semibold">{{ selectedTime ? 'Logs no Momento' : 'Logs Recentes' }}</h3>
+          <UButton v-if="selectedTime" icon="i-heroicons-arrow-path" size="xs" variant="ghost"
+            @click="clearSelection" />
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 space-y-2">
+          <div v-for="log in filteredLogs" :key="log.id"
+            class="p-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+            @click="openLogDetails(log)">
+            <div class="flex justify-between text-xs text-gray-500">
+              {{ format(new Date(log.timestamp), 'HH:mm') }}
+              <span :class="log.probability > 50 ? 'text-red-500' : 'text-green-500'">{{ log.probability }}%</span>
             </div>
+            <div class="font-medium text-sm">{{ log.cameraName }}</div>
           </div>
         </div>
       </div>
+
     </div>
+
+    <!-- Modals -->
+    <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera" />
+
   </UDashboardPanel>
 </template>
+
+<style scoped>
+.fade-move,
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.5s cubic-bezier(0.55, 0, 0.1, 1);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.fade-leave-active {
+  position: absolute;
+}
+</style>

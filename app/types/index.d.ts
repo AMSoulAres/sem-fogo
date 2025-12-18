@@ -11,7 +11,7 @@ export interface Camera {
   id: string
   name: string
   location: string
-  isFavorite: boolean
+  groups: string[] // List of group IDs this camera belongs to
   status: 'online' | 'offline'
   fireProbability: number // 0-100
   imageUrl: string
