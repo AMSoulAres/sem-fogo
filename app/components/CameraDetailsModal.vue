@@ -14,6 +14,10 @@ const isOpen = computed({
     set: (value) => emit('update:modelValue', value)
 })
 
+const close = () => {
+    isOpen.value = false
+}
+
 const { sendCameraCommand, logs } = useCameraData()
 
 const cameraLogs = computed(() => {
@@ -31,15 +35,22 @@ const handleCommand = async (cmd: string) => {
 </script>
 
 <template>
-    <UModal v-model="isOpen" :ui="{ content: 'w-full sm:max-w-4xl' }">
-        <UCard :ui="{ body: 'p-0', header: 'p-2' }">
+    <div v-if="isOpen" class="fixed inset-0 z-[100] flex items-center justify-center">
+        <!-- Backdrop / Overlay -->
+        <div class="absolute inset-0 bg-gray-900/80 backdrop-blur-sm transition-opacity" @click="close" />
+
+        <!-- Modal Content -->
+        <UCard :ui="{
+            body: 'p-0',
+            header: 'p-4 border-b border-gray-200 dark:border-gray-800',
+            root: 'relative w-full sm:max-w-5xl shadow-2xl z-10 bg-white dark:bg-gray-900 max-h-[90vh] overflow-hidden rounded-lg'
+        }">
             <template #header>
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                         {{ camera.name }}
                     </h3>
-                    <UButton color="neutral" variant="ghost" icon="i-heroicons-x-mark-20-solid"
-                        @click="isOpen = false" />
+                    <UButton color="neutral" variant="ghost" icon="i-heroicons-x-mark-20-solid" @click="close" />
                 </div>
             </template>
 
@@ -48,13 +59,6 @@ const handleCommand = async (cmd: string) => {
                 <div class="lg:col-span-2 bg-black relative flex flex-col">
                     <div class="flex-1 relative overflow-hidden flex items-center justify-center bg-gray-950">
                         <img :src="camera.imageUrl" :alt="camera.name" class="w-full h-full object-contain" />
-
-                        <!-- Live Overlay -->
-                        <div
-                            class="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">
-                            AO VIVO
-                        </div>
-
                         <div class="absolute bottom-4 left-4 text-white drop-shadow-md">
                             <div class="text-xs opacity-80">LAT: -15.7934 LONG: -47.8823</div>
                             <div class="text-lg font-bold">{{ camera.location }}</div>
@@ -138,5 +142,5 @@ const handleCommand = async (cmd: string) => {
                 </div>
             </div>
         </UCard>
-    </UModal>
+    </div>
 </template>

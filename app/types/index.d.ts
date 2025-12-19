@@ -24,3 +24,29 @@ export interface PriorityLog {
   cameraId: string
   cameraName: string
 }
+
+export interface CameraInfo {
+  id: string
+  name: string
+  location: string
+  groups: string[] // List of group IDs this camera belongs to
+  status: 'online' | 'offline'
+}
+
+export interface CameraInfoRequest {
+  cameraId: string
+  timestamp: string // ISO date string
+  angleHorizontal: number
+  angleVertical: number
+  zoom: number
+}
+
+export interface CameraInfoLogResponse {
+  cameraId: string
+  timestamp: string // ISO date string
+  fireProbability: number // 0-100
+  angleHorizontal: number
+  angleVertical: number
+  zoom: number
+  imageBase64: string
+}

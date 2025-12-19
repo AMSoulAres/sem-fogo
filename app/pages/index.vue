@@ -88,12 +88,6 @@ const openLogDetails = (log: PriorityLog) => {
   if (cam) openDetails(cam)
 }
 
-const test = () => {
-  console.log('test')
-  console.log(selectedGroup.value)
-  console.log(groups.value)
-  console.log(groups)
-}
 </script>
 
 <template>
