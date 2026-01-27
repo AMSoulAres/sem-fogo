@@ -2,7 +2,7 @@
 import type { Camera } from '~/types'
 
 const props = defineProps<{
-  camera: Camera
+  camera: any
 }>()
 
 const emit = defineEmits(['toggle-group', 'open-details'])

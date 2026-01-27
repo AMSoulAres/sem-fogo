@@ -1,102 +1,73 @@
 import { sub, formatISO } from 'date-fns'
-import type { Camera, PriorityLog } from '~/types'
+import type { CameraInfo, CameraInfoLogResponse, PriorityLog } from '~/types'
+import { useIntervalFn } from '@vueuse/core'
+
+interface CameraExtended extends CameraInfo {
+    fireProbability: number
+    imageUrl: string
+    groups: string[]
+}
 
 export const useCameraData = () => {
-    // Persistent Groups
     const groups = useLocalStorage<string[]>('camera-groups', ['Favoritas', 'Zona Norte', 'Zona Sul', 'Parques'])
 
-    // Persistent Cameras
-    const cameras = useLocalStorage<Camera[]>('cameras-v1', [
-        {
-            id: 'cam-1',
-            name: 'Esplanada/Lago',
-            location: 'Brasília, DF',
-            groups: ['Favoritas', 'Zona Sul'],
-            status: 'online',
-            fireProbability: 10,
-            imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQlD4JX82qIbuiwO0VPg7gXxz910EKwmMxYzg&s'
-        },
-        {
-            id: 'cam-2',
-            name: 'Parque Nacional',
-            location: 'Brasília, DF',
-            groups: ['Favoritas', 'Zona Norte', 'Parques'],
-            status: 'online',
-            fireProbability: 85,
-            imageUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=800&auto=format&fit=crop'
-        },
-        {
-            id: 'cam-3',
-            name: 'Fercal',
-            location: 'Sobradinho, DF',
-            groups: ['Zona Norte'],
-            status: 'online',
-            fireProbability: 5,
-            imageUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=800&auto=format&fit=crop'
-        },
-        {
-            id: 'cam-4',
-            name: 'Núcleo Rural',
-            location: 'Planaltina, DF',
-            groups: [],
-            status: 'offline',
-            fireProbability: 0,
-            imageUrl: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'
-        },
-        {
-            id: 'cam-5',
-            name: 'Jardim Botânico',
-            location: 'Lago Sul, DF',
-            groups: ['Parques'],
-            status: 'online',
-            fireProbability: 45,
-            imageUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=800&auto=format&fit=crop'
-        },
-        {
-            id: 'cam-6',
-            name: 'Torre de TV',
-            location: 'Plano Piloto, DF',
-            groups: ['Favoritas'],
-            status: 'online',
-            fireProbability: 12,
-            imageUrl: 'https://images.unsplash.com/photo-1572402123736-c79526a911eb?q=80&w=800&auto=format&fit=crop'
-        }
+    // Static Camera Info
+    const camerasInfo = ref<CameraInfo[]>([
+        { id: 'cam-1', name: 'Esplanada/Lago', location: 'Brasília, DF', groups: ['Favoritas', 'Zona Sul'], status: 'online' },
+        { id: 'cam-2', name: 'Parque Nacional', location: 'Brasília, DF', groups: ['Favoritas', 'Zona Norte', 'Parques'], status: 'online' },
+        { id: 'cam-3', name: 'Fercal', location: 'Sobradinho, DF', groups: ['Zona Norte'], status: 'online' },
+        { id: 'cam-4', name: 'Núcleo Rural', location: 'Planaltina, DF', groups: [], status: 'offline' },
+        { id: 'cam-5', name: 'Jardim Botânico', location: 'Lago Sul, DF', groups: ['Parques'], status: 'online' },
+        { id: 'cam-6', name: 'Torre de TV', location: 'Plano Piloto, DF', groups: ['Favoritas'], status: 'online' }
     ])
 
-    // Mock Logs (Not persisted for now as they are "realtime")
-    const logs = useState<PriorityLog[]>('logs', () => {
-        const _logs: PriorityLog[] = []
-        const startOfToday = new Date()
-        startOfToday.setHours(0, 0, 0, 0)
+    // State for latest logs
+    const latestLogs = ref<Record<string, CameraInfoLogResponse>>({})
 
-        for (let i = 0; i < 20; i++) {
-            const minutesToAdd = Math.floor(Math.random() * (24 * 60))
-            const date = new Date(startOfToday.getTime() + minutesToAdd * 60 * 1000)
+    // Historical Logs (Accumulated)
+    const logs = ref<PriorityLog[]>([])
 
-            _logs.push({
-                id: `log-${i}`,
-                timestamp: formatISO(date),
-                probability: Math.floor(Math.random() * 100),
-                cameraId: `cam-${Math.floor(Math.random() * 6) + 1}`,
-                cameraName: 'Camera ' + (Math.floor(Math.random() * 6) + 1)
-            })
+    const fetchLogs = async () => {
+        try {
+            const data = await $fetch<CameraInfoLogResponse[]>('/api/logs')
+            if (data) {
+                data.forEach(log => {
+                    latestLogs.value[log.cameraId] = log
+                    const camera = camerasInfo.value.find(c => c.id === log.cameraId)
+                    logs.value.unshift({
+                        id: `log-${Date.now()}-${log.cameraId}`,
+                        timestamp: log.timestamp,
+                        probability: log.fireProbability,
+                        cameraId: log.cameraId,
+                        cameraName: camera?.name || 'Unknown'
+                    })
+                })
+                // Keep logs manageable
+                if (logs.value.length > 200) logs.value = logs.value.slice(0, 200)
+            }
+        } catch (e) {
+            console.error('Failed to fetch logs', e)
         }
+    }
 
-        // Add recent high prob
-        const now = new Date()
-        _logs.push({
-            id: 'log-recent-high',
-            timestamp: formatISO(sub(now, { minutes: 30 })),
-            probability: 92,
-            cameraId: 'cam-2',
-            cameraName: 'Parque Nacional'
+    // Poll every minute
+    const { pause, resume, isActive } = useIntervalFn(fetchLogs, 60000, { immediate: true })
+
+    // Merged Data for UI
+    const cameras = computed<any[]>(() => {
+        return camerasInfo.value.map(info => {
+            const log = latestLogs.value[info.id]
+            return {
+                ...info,
+                fireProbability: log?.fireProbability ?? 0,
+                imageUrl: log?.imageBase64 ?? '', // Fallback or placeholder logic could go here
+                groups: info.groups // Ensure groups are passed through
+            }
         })
-
-        return _logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     })
 
     const toggleGroup = (cameraId: string, groupName: string) => {
-        const camera = cameras.value.find(c => c.id === cameraId)
+        const camera = camerasInfo.value.find(c => c.id === cameraId)
         if (camera) {
             if (camera.groups.includes(groupName)) {
                 camera.groups = camera.groups.filter(g => g !== groupName)
@@ -113,7 +84,6 @@ export const useCameraData = () => {
     }
 
     const sendCameraCommand = (cameraId: string, command: string) => {
-        // Here we would call the API
         console.log(`Sending command ${command} to camera ${cameraId}`)
         return new Promise(resolve => setTimeout(resolve, 800))
     }

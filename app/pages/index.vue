@@ -4,18 +4,14 @@ import type { PriorityLog, Camera } from '~/types'
 
 const { cameras, logs, groups, toggleGroup } = useCameraData()
 
-// UI Persistence
 const selectedGroup = useLocalStorage('selected-group', 'Favoritas')
 const isLogsOpen = useLocalStorage('logs-open', false)
 
-// Search
 const search = ref('')
 
-// Pagination
 const currentPage = ref(0)
 const itemsPerPage = 2
 
-// Watch group or search change to reset page
 watch([selectedGroup, search], () => {
   currentPage.value = 0
 })
@@ -23,12 +19,10 @@ watch([selectedGroup, search], () => {
 const filteredCameras = computed(() => {
   let result = cameras.value
 
-  // Filter by Group
   if (selectedGroup.value !== 'Todas') {
     result = result.filter(c => c.groups.includes(selectedGroup.value))
   }
 
-  // Filter by Search
   if (search.value) {
     const s = search.value.toLowerCase()
     result = result.filter(c => c.name.toLowerCase().includes(s) || c.location.toLowerCase().includes(s))
@@ -75,10 +69,10 @@ const clearSelection = () => {
 }
 
 // Camera Details
-const selectedCamera = ref<Camera | null>(null)
+const selectedCamera = ref<any | null>(null)
 const isDetailsOpen = ref(false)
 
-const openDetails = (camera: Camera) => {
+const openDetails = (camera: any) => {
   selectedCamera.value = camera
   isDetailsOpen.value = true
 }
@@ -110,12 +104,11 @@ const openLogDetails = (log: PriorityLog) => {
       <div class="flex-1 flex flex-col p-6 bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
 
         <div class="flex-1 flex items-center justify-center relative">
-          <!-- Left Arrow -->
           <UButton v-if="currentPage > 0" icon="i-heroicons-chevron-left"
             class="absolute left-0 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
             @click="prevPage" />
 
-          <!-- Camera Grid (Slide) -->
+          <!-- Camera Grid (Slides) -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-h-[80vh]">
             <TransitionGroup name="fade">
               <div v-for="camera in displayedCameras" :key="camera.id" class="h-full flex flex-col">
@@ -124,7 +117,7 @@ const openLogDetails = (log: PriorityLog) => {
               </div>
             </TransitionGroup>
 
-            <!-- Empty State -->
+            <!-- If Empty -->
             <div v-if="displayedCameras.length === 0"
               class="col-span-3 flex flex-col items-center justify-center text-gray-400">
               <UIcon name="i-heroicons-video-camera-slash" class="w-16 h-16 mb-4" />
@@ -132,13 +125,12 @@ const openLogDetails = (log: PriorityLog) => {
             </div>
           </div>
 
-          <!-- Right Arrow -->
           <UButton v-if="currentPage < totalPages - 1" icon="i-heroicons-chevron-right"
             class="absolute right-0 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
             @click="nextPage" />
         </div>
 
-        <!-- Pagination Indicators -->
+        <!-- Pagination -->
         <div v-if="totalPages > 1" class="flex justify-center mt-4 gap-2">
           <div v-for="i in totalPages" :key="i" class="w-2 h-2 rounded-full transition-colors cursor-pointer"
             :class="(i - 1) === currentPage ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-700'"
@@ -172,7 +164,7 @@ const openLogDetails = (log: PriorityLog) => {
 
     </div>
 
-    <!-- Modals -->
+    <!-- Modais -->
     <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera" />
 
   </UDashboardPanel>

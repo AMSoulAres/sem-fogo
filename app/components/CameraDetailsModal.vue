@@ -3,7 +3,7 @@ import type { Camera } from '~/types'
 import { format } from 'date-fns'
 
 const props = defineProps<{
-    camera: Camera
+    camera: any
     modelValue: boolean
 }>()
 
