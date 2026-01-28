@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { Camera } from '~/types'
+import type { Camera, PriorityLog } from '~/types'
 import { format } from 'date-fns'
 
 const props = defineProps<{
     camera: any
     modelValue: boolean
+    selectedLog?: PriorityLog
 }>()
 
 const emit = defineEmits(['update:modelValue'])
@@ -21,7 +22,15 @@ const close = () => {
 const { sendCameraCommand, logs } = useCameraData()
 
 const cameraLogs = computed(() => {
-    return logs.value.filter(l => l.cameraId === props.camera.id).slice(0, 50)
+    const allCameraLogs = logs.value.filter(l => l.cameraId === props.camera.id)
+
+    // If we have a selected log, ensure it's at the top
+    if (props.selectedLog) {
+        const withoutSelected = allCameraLogs.filter(l => l.id !== props.selectedLog!.id)
+        return [props.selectedLog, ...withoutSelected].slice(0, 50)
+    }
+
+    return allCameraLogs.slice(0, 50)
 })
 
 const isSending = ref(false)
@@ -124,9 +133,17 @@ const handleCommand = async (cmd: string) => {
                     <div class="flex-1 overflow-y-auto p-4">
                         <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Logs Recentes</h4>
                         <div class="space-y-3">
-                            <div v-for="log in cameraLogs" :key="log.id"
-                                class="p-3 bg-gray-50 dark:bg-gray-800 rounded text-sm relative border-l-4"
-                                :class="log.probability > 70 ? 'border-red-500' : 'border-gray-300'">
+                            <div v-for="(log, index) in cameraLogs" :key="log.id"
+                                class="p-3 rounded text-sm relative border-l-4 transition-all" :class="[
+                                    log.probability > 70 ? 'border-red-500' : 'border-gray-300',
+                                    selectedLog && log.id === selectedLog.id
+                                        ? 'bg-amber-100 dark:bg-amber-900/30 ring-2 ring-amber-500'
+                                        : 'bg-gray-50 dark:bg-gray-800'
+                                ]">
+                                <div v-if="selectedLog && log.id === selectedLog.id"
+                                    class="absolute -top-2 -left-1 px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded">
+                                    Selecionado
+                                </div>
                                 <div class="flex justify-between text-xs text-gray-500">
                                     <span>{{ format(new Date(log.timestamp), 'dd/MM HH:mm:ss') }}</span>
                                 </div>

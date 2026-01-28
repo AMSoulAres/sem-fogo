@@ -31,19 +31,36 @@ export const useCameraData = () => {
         try {
             const data = await $fetch<CameraInfoLogResponse[]>('/api/logs')
             if (data) {
+                // Track existing log IDs for deduplication
+                const existingIds = new Set(logs.value.map(l => l.id))
+
                 data.forEach(log => {
-                    latestLogs.value[log.cameraId] = log
-                    const camera = camerasInfo.value.find(c => c.id === log.cameraId)
-                    logs.value.unshift({
-                        id: `log-${Date.now()}-${log.cameraId}`,
-                        timestamp: log.timestamp,
-                        probability: log.fireProbability,
-                        cameraId: log.cameraId,
-                        cameraName: camera?.name || 'Unknown'
-                    })
+                    // Update latest log for camera (always overwrite with newest)
+                    const currentLatest = latestLogs.value[log.cameraId]
+                    if (!currentLatest || new Date(log.timestamp) > new Date(currentLatest.timestamp)) {
+                        latestLogs.value[log.cameraId] = log
+                    }
+
+                    // Create stable ID based on cameraId + timestamp
+                    const stableId = `${log.cameraId}-${new Date(log.timestamp).getTime()}`
+
+                    // Only add if not already present (deduplication)
+                    if (!existingIds.has(stableId)) {
+                        const camera = camerasInfo.value.find(c => c.id === log.cameraId)
+                        logs.value.push({
+                            id: stableId,
+                            timestamp: log.timestamp,
+                            probability: log.fireProbability,
+                            cameraId: log.cameraId,
+                            cameraName: camera?.name || 'Unknown'
+                        })
+                        existingIds.add(stableId)
+                    }
                 })
-                // Keep logs manageable
-                if (logs.value.length > 200) logs.value = logs.value.slice(0, 200)
+
+                // Sort by timestamp descending and limit
+                logs.value.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                if (logs.value.length > 500) logs.value = logs.value.slice(0, 500)
             }
         } catch (e) {
             console.error('Failed to fetch logs', e)

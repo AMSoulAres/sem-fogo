@@ -70,17 +70,26 @@ const clearSelection = () => {
 
 // Camera Details
 const selectedCamera = ref<any | null>(null)
+const selectedLog = ref<PriorityLog | undefined>(undefined)
 const isDetailsOpen = ref(false)
 
-const openDetails = (camera: any) => {
+const openDetails = (camera: any, log?: PriorityLog) => {
   selectedCamera.value = camera
+  selectedLog.value = log
   isDetailsOpen.value = true
 }
 
 const openLogDetails = (log: PriorityLog) => {
   const cam = cameras.value.find(c => c.id === log.cameraId)
-  if (cam) openDetails(cam)
+  if (cam) openDetails(cam, log)
 }
+
+// Reset selected log when modal closes
+watch(isDetailsOpen, (val) => {
+  if (!val) {
+    selectedLog.value = undefined
+  }
+})
 
 </script>
 
@@ -165,7 +174,8 @@ const openLogDetails = (log: PriorityLog) => {
     </div>
 
     <!-- Modais -->
-    <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera" />
+    <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera"
+      :selected-log="selectedLog" />
 
   </UDashboardPanel>
 </template>
