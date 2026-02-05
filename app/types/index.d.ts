@@ -3,8 +3,8 @@ import type { AvatarProps } from '@nuxt/ui'
 export type Period = 'daily' | 'weekly' | 'monthly'
 
 export interface Range {
-  start: Date
-  end: Date
+  startTimestamp: string
+  endTimestamp: string
 }
 
 export interface Camera {
@@ -23,6 +23,7 @@ export interface PriorityLog {
   probability: number // 0-100
   cameraId: string
   cameraName: string
+  imagesBase64: string[]
 }
 
 export interface CameraInfo {
@@ -33,20 +34,20 @@ export interface CameraInfo {
   status: 'online' | 'offline'
 }
 
-export interface CameraInfoRequest {
+export interface CameraLogsRequest {
   cameraId: string
-  timestamp: string // ISO date string
-  angleHorizontal: number
-  angleVertical: number
-  zoom: number
+  range: Range
+  quadrantZoom: number
 }
 
-export interface CameraInfoLogResponse {
+export interface Log {
   cameraId: string
   timestamp: string // ISO date string
   fireProbability: number // 0-100
-  angleHorizontal: number
-  angleVertical: number
-  zoom: number
-  imageBase64: string
+  quadrantZoom: number
+  imagesBase64: string[]
+}
+
+export interface CameraLogsResponse {
+  logs: Log[]
 }

@@ -47,15 +47,26 @@ const prevPage = () => {
 }
 
 // Logs Logic
+// Logs Logic
 const selectedTime = ref<Date | null>(null)
-const recentLogs = computed(() => logs.value.slice(0, 20))
+
+// Filter logs based on the currently filtered cameras (which respects search and group selection)
+const filteredAllLogs = computed(() => {
+  const cameraIds = new Set(filteredCameras.value.map(c => c.id))
+  return logs.value.filter(log => cameraIds.has(log.cameraId))
+})
+
+const recentLogs = computed(() => filteredAllLogs.value.slice(0, 50)) // Increased to 50 for better context
+
 const filteredLogs = computed(() => {
   if (!selectedTime.value) return recentLogs.value
-  const start = new Date(selectedTime.value.getTime() - 30 * 60 * 1000)
-  const end = new Date(selectedTime.value.getTime() + 30 * 60 * 1000)
-  return logs.value.filter(log => {
+  const start = new Date(selectedTime.value.getTime())
+  // 15 min window as per timeline segments
+  const end = new Date(selectedTime.value.getTime() + 15 * 60 * 1000) 
+  
+  return filteredAllLogs.value.filter(log => {
     const logTime = new Date(log.timestamp)
-    return logTime >= start && logTime <= end
+    return logTime >= start && logTime < end
   })
 })
 
@@ -70,26 +81,17 @@ const clearSelection = () => {
 
 // Camera Details
 const selectedCamera = ref<any | null>(null)
-const selectedLog = ref<PriorityLog | undefined>(undefined)
 const isDetailsOpen = ref(false)
 
-const openDetails = (camera: any, log?: PriorityLog) => {
+const openDetails = (camera: any) => {
   selectedCamera.value = camera
-  selectedLog.value = log
   isDetailsOpen.value = true
 }
 
 const openLogDetails = (log: PriorityLog) => {
   const cam = cameras.value.find(c => c.id === log.cameraId)
-  if (cam) openDetails(cam, log)
+  if (cam) openDetails(cam)
 }
-
-// Reset selected log when modal closes
-watch(isDetailsOpen, (val) => {
-  if (!val) {
-    selectedLog.value = undefined
-  }
-})
 
 </script>
 
@@ -108,7 +110,11 @@ watch(isDetailsOpen, (val) => {
       </template>
     </UDashboardNavbar>
 
-    <div class="flex-1 flex overflow-hidden relative">
+    <div class="flex-1 flex overflow-hidden relative h-full bg-gray-50 dark:bg-gray-950">
+
+      <!-- Timeline (Right Side) -->
+      <Timeline :logs="filteredAllLogs" @select-time="handleTimeSelection" />
+
       <!-- Main Content: Cameras -->
       <div class="flex-1 flex flex-col p-6 bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
 
@@ -147,35 +153,50 @@ watch(isDetailsOpen, (val) => {
         </div>
       </div>
 
-      <!-- Timeline (Right Side) -->
-      <Timeline :logs="logs" @select-time="handleTimeSelection" />
-
-      <!-- Logs Panel -->
-      <div v-if="isLogsOpen"
-        class="w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col transition-all">
-        <div class="p-3 border-b flex items-center justify-between">
-          <h3 class="font-semibold">{{ selectedTime ? 'Logs no Momento' : 'Logs Recentes' }}</h3>
-          <UButton v-if="selectedTime" icon="i-heroicons-arrow-path" size="xs" variant="ghost"
-            @click="clearSelection" />
-        </div>
-        <div class="flex-1 overflow-y-auto p-3 space-y-2">
-          <div v-for="log in filteredLogs" :key="log.id"
-            class="p-2 border rounded hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-            @click="openLogDetails(log)">
-            <div class="flex justify-between text-xs text-gray-500">
-              {{ format(new Date(log.timestamp), 'HH:mm') }}
-              <span :class="log.probability > 50 ? 'text-red-500' : 'text-green-500'">{{ log.probability }}%</span>
+      <!-- Logs Panel - Overlays from right side -->
+      <Transition name="slide-left">
+        <div v-if="isLogsOpen"
+          class="absolute top-0 right-0 w-80 h-full bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl z-30">
+          <div class="p-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shrink-0">
+            <div class="flex flex-col">
+              <h3 class="font-semibold text-gray-900 dark:text-white">
+                {{ selectedTime ? 'Logs Detalhados' : 'Logs Recentes' }}
+              </h3>
+              <span v-if="selectedTime" class="text-xs text-gray-500">
+                {{ format(selectedTime, 'dd/MM HH:mm') }} - {{ format(new Date(selectedTime.getTime() + 15 * 60000), 'HH:mm') }}
+              </span>
             </div>
-            <div class="font-medium text-sm">{{ log.cameraName }}</div>
+            <UButton icon="i-heroicons-x-mark" size="xs" variant="ghost" @click="isLogsOpen = false" />
+          </div>
+          <div class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+            <div v-if="filteredLogs.length === 0" class="text-center text-gray-500 py-4 text-sm">
+              Nenhum log encontrado neste período.
+            </div>
+            <div v-for="log in filteredLogs" :key="log.id"
+              class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all duration-200 group bg-white dark:bg-gray-900 shadow-sm"
+              :class="log.probability > 50 ? 'border-red-200 dark:border-red-900/50' : 'border-gray-200 dark:border-gray-800'"
+              @click="openLogDetails(log)">
+              
+              <div class="flex justify-between items-start mb-1">
+                <span class="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ log.cameraName }}</span>
+                <UBadge :color="log.probability > 70 ? 'red' : log.probability > 30 ? 'orange' : 'green'" variant="soft" size="xs">
+                  {{ log.probability }}%
+                </UBadge>
+              </div>
+              
+              <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
+                <UIcon name="i-heroicons-clock" class="w-3 h-3" />
+                {{ format(new Date(log.timestamp), 'HH:mm:ss') }}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
 
     </div>
 
     <!-- Modais -->
-    <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera"
-      :selected-log="selectedLog" />
+    <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera" />
 
   </UDashboardPanel>
 </template>
@@ -195,5 +216,18 @@ watch(isDetailsOpen, (val) => {
 
 .fade-leave-active {
   position: absolute;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-left-enter-from {
+  transform: translateX(100%);
+}
+
+.slide-left-leave-to {
+  transform: translateX(100%);
 }
 </style>

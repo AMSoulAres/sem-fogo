@@ -51,14 +51,15 @@ const segments = computed(() => {
 <template>
 
   <div
-    class="h-full w-6 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 mr-2">
+    class="h-full w-6 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 ml-4">
     <div class="text-xs text-center py-2 font-bold text-gray-500">24h</div>
     <div class="flex-1 flex flex-col w-full relative h-full">
       <div v-for="(segment, index) in segments" :key="index"
         class="w-full flex-1 cursor-pointer transition-colors hover:opacity-80 relative group min-h-[11px]"
         :class="segment.color" @click="$emit('select-time', segment.start)">
         <div
-          class="absolute left-full top-1/2 -translate-y-1/2 bg-black text-white text-sm px-2 py-8s rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+          class="absolute right-full top-1/2 -translate-y-1/2 mr-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-lg font-mono">
+          {{ segment.label }}
         </div>
       </div>
     </div>
