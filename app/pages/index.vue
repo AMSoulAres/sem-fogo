@@ -47,7 +47,6 @@ const prevPage = () => {
 }
 
 // Logs Logic
-// Logs Logic
 const selectedTime = ref<Date | null>(null)
 
 // Filter logs based on the currently filtered cameras (which respects search and group selection)
@@ -88,9 +87,12 @@ const openDetails = (camera: any) => {
   isDetailsOpen.value = true
 }
 
+const selectedLog = ref<PriorityLog | null>(null)
+const isLogModalOpen = ref(false)
+
 const openLogDetails = (log: PriorityLog) => {
-  const cam = cameras.value.find(c => c.id === log.cameraId)
-  if (cam) openDetails(cam)
+  selectedLog.value = log
+  isLogModalOpen.value = true
 }
 
 </script>
@@ -197,6 +199,7 @@ const openLogDetails = (log: PriorityLog) => {
 
     <!-- Modais -->
     <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera" />
+    <LogDetailsModal v-if="selectedLog" v-model="isLogModalOpen" :log="selectedLog" />
 
   </UDashboardPanel>
 </template>

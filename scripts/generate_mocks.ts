@@ -8,6 +8,7 @@ interface MockCamera {
     location: string
     groups: string[]
     status: 'online' | 'offline'
+    geoLocation: { latitude: number; longitude: number }
 }
 
 interface MockLogConfig {
@@ -16,6 +17,10 @@ interface MockLogConfig {
     fireProbability: number
     quadrantZoom: number
     imagesBase64: string[]
+    geoLocation: {
+        latitude: number
+        longitude: number
+    }
 }
 
 interface MockDB {
@@ -37,14 +42,6 @@ const CAMERA_NAMES = [
     'Jardim Botânico', 'Torre de TV', 'Parque da Cidade',
     'Eixão Norte', 'Eixo Monumental'
 ]
-const IMAGE_URLS = [
-    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQlD4JX82qIbuiwO0VPg7gXxz910EKwmMxYzg&s',
-    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=800&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=800&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=800&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1572402123736-c79526a911eb?q=80&w=800&auto=format&fit=crop'
-]
 
 // Determine deterministic seeded random
 const pseudoRandom = (seed: number) => {
@@ -65,51 +62,65 @@ if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true })
 }
 
+// Map locations to approximate coordinates
+const COORDINATES: Record<string, { latitude: number; longitude: number }> = {
+    'Brasília, DF': { latitude: -15.793889, longitude: -47.882778 },
+    'Sobradinho, DF': { latitude: -15.654763, longitude: -47.792777 },
+    'Planaltina, DF': { latitude: -15.619080, longitude: -47.653497 },
+    'Lago Sul, DF': { latitude: -15.839818, longitude: -47.876798 },
+    'Plano Piloto, DF': { latitude: -15.7801, longitude: -47.9292 },
+    'Águas Claras, DF': { latitude: -15.841584, longitude: -48.026388 }
+}
+
 const generateData = () => {
-    const cameras: MockCamera[] = CAMERA_NAMES.map((name, index) => ({
-        id: `cam-${index + 1}`,
-        name: name,
-        location: LOCATIONS[index % LOCATIONS.length],
-        groups: [
-            GROUPS[index % GROUPS.length],
-            index % 3 === 0 ? 'Favoritas' : ''
-        ].filter(Boolean),
-        status: index === 3 ? 'offline' : 'online' // Fixed status for predictability
-    }))
+    const cameras: MockCamera[] = CAMERA_NAMES.map((name, index) => {
+        const locationName = LOCATIONS[index % LOCATIONS.length]
+        return {
+            id: `cam-${index + 1}`,
+            name: name,
+            location: locationName,
+            groups: [
+                GROUPS[index % GROUPS.length],
+                index % 3 === 0 ? 'Favoritas' : ''
+            ].filter(Boolean),
+            status: index === 3 ? 'offline' : 'online',
+            // Default cam coords
+            geoLocation: COORDINATES[locationName] || { latitude: -15.793889, longitude: -47.882778 } 
+        }
+    })
 
     const logs: Record<string, MockLogConfig[]> = {}
 
-    cameras.forEach((cam, camIndex) => {
-        const camLogs: MockLogConfig[] = []
-        // Generate 24 hours of data (1440 minutes), every 10 minutes
-        // Plus some extra buffer
-        const interval = 10
-        const duration = 1440 * 2 // 48h
+    cameras.forEach(camera => {
+        const numLogs = Math.floor(Math.random() * 10) + 2 // 2 to 12 logs
+        const cameraLogs: MockLogConfig[] = []
 
-        for (let m = 0; m <= duration; m += interval) {
-            const seed = camIndex * 100000 + m
+        // Start from recent times
+        let currentRelativeMinutes = Math.floor(Math.random() * 60) // Start within last hour
 
-            // Cyclic Probability Wave
-            // We want some cameras to have high probability periods
-            // Use sin wave shifted by camera index
-            const wave = Math.sin((m / 200) + camIndex)
-            let prob = Math.floor(Math.abs(wave) * 20) // Base noise 0-20
+        for (let i = 0; i < numLogs; i++) {
+            // Gap between logs (30 mins to 4 hours)
+            const gap = Math.floor(Math.random() * 240) + 30
+            currentRelativeMinutes += gap
+            
+            // Jitter location slightly around camera
+            const latJitter = (Math.random() - 0.5) * 0.005
+            const lngJitter = (Math.random() - 0.5) * 0.005
 
-            // Add spikes
-            if (wave > 0.8 && getSeededInt(seed, 0, 10) > 7) {
-                prob += getSeededInt(seed, 30, 70)
-            }
-            if (prob > 100) prob = 100
-
-            camLogs.push({
-                cameraId: cam.id,
-                relativeMinutes: m, // Storing positive offset: 0 = now, 10 = 10 mins ago
-                fireProbability: prob,
-                quadrantZoom: getSeededInt(seed, 1, 4),
-                imagesBase64: [getSeededItem(seed, IMAGE_URLS)]
+            cameraLogs.push({
+                cameraId: camera.id,
+                relativeMinutes: currentRelativeMinutes,
+                fireProbability: Math.floor(Math.random() * 100),
+                quadrantZoom: Math.floor(Math.random() * 4) + 1,
+                imagesBase64: [],
+                geoLocation: {
+                    latitude: camera.geoLocation.latitude + latJitter,
+                    longitude: camera.geoLocation.longitude + lngJitter
+                }
             })
         }
-        logs[cam.id] = camLogs
+        
+        logs[camera.id] = cameraLogs
     })
 
     const db: MockDB = { cameras, logs }

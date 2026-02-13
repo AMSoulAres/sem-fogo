@@ -35,7 +35,7 @@ const addNewGroup = () => {
     <template #header>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2 overflow-hidden">
-          <div class="w-2 h-2 rounded-full flex-shrink-0" :class="statusColor" />
+          <div class="w-2 h-2 rounded-full shrink-0" :class="statusColor" />
           <h3 class="font-semibold text-sm truncate">{{ camera.name }}</h3>
         </div>
 
@@ -82,7 +82,7 @@ const addNewGroup = () => {
       </div>
 
       <div v-if="camera.fireProbability > 0"
-        class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-3 flex items-end justify-between">
+        class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/90 to-transparent p-3 flex items-end justify-between">
         <div class="flex flex-col">
           <span class="text-[10px] text-gray-300 uppercase font-bold tracking-wider">Probabilidade de Fogo</span>
           <span class="text-lg font-bold" :class="probabilityColor">

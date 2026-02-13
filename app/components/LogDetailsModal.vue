@@ -1,0 +1,152 @@
+<script setup lang="ts">
+import type { PriorityLog } from '~/types'
+import { format } from 'date-fns'
+import 'leaflet/dist/leaflet.css'
+import Carousel from './Carousel.vue'
+
+const props = defineProps<{
+  modelValue: boolean
+  log: PriorityLog | null
+}>()
+
+const emit = defineEmits(['update:modelValue'])
+
+const isOpen = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+})
+
+const close = () => {
+  isOpen.value = false
+}
+
+// Map Logic
+const mapContainer = ref<HTMLElement | null>(null)
+let map: any | null = null
+let L: any = null
+
+onMounted(async () => {
+  if (import.meta.client) {
+    L = (await import('leaflet')).default
+
+    // Fix Leaflet's default icon path issues
+    delete (L.Icon.Default.prototype as any)._getIconUrl
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    })
+  }
+})
+
+// Initialize Map when modal opens and log is available
+watch(() => [isOpen.value, props.log], async ([open, logData]) => {
+  if (open && logData && mapContainer.value && L) {
+    // Wait for next tick to ensure container is rendered dimensions
+    await nextTick()
+
+    const log = logData as PriorityLog
+
+    if (!map) {
+      map = L.map(mapContainer.value).setView([log.geoLocation.latitude, log.geoLocation.longitude], 13)
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map)
+    } else {
+      map.invalidateSize()
+      map.setView([log.geoLocation.latitude, log.geoLocation.longitude], 13)
+    }
+
+    // Clear existing layers (markers)
+    map.eachLayer((layer: any) => {
+      if (layer instanceof L.Marker) {
+        map?.removeLayer(layer)
+      }
+    })
+
+    // Add Marker
+    L.marker([log.geoLocation.latitude, log.geoLocation.longitude])
+      .addTo(map)
+      .bindPopup(`<b>${log.cameraName}</b><br>Probabilidade: ${log.probability}%`)
+      .openPopup()
+  }
+}, { flush: 'post' })
+
+</script>
+
+<template>
+  <div v-if="isOpen" class="fixed inset-0 z-150 flex items-center justify-center">
+    <!-- Backdrop / Overlay -->
+    <div class="absolute inset-0 bg-gray-900/80 backdrop-blur-sm transition-opacity" @click="close" />
+
+    <!-- Modal Content -->
+    <UCard :ui="{
+      body: 'p-0',
+      header: 'p-4 border-b border-gray-200 dark:border-gray-800',
+      root: 'relative w-screen ml-30 mr-30 shadow-2xl z-10 bg-white dark:bg-gray-900 max-h-[90vh] overflow-hidden rounded-lg flex flex-col'
+    }">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <div v-if="log" class="flex flex-col">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+              Detalhes da Detecção - {{ log.cameraName }}
+            </h3>
+            <span class="text-sm text-gray-300">
+              {{ format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss') }}
+            </span>
+          </div>
+          <UButton color="neutral" variant="ghost" icon="i-heroicons-x-mark-20-solid" @click="close" />
+        </div>
+      </template>
+
+      <div v-if="log" class="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
+        <!-- Hero Carousel (full width, centered, arrows on sides) -->
+        <Carousel :log="log" />
+
+        <!-- Bottom: 2-column grid — Details left, Map right -->
+        <div class="grid grid-cols-2 gap-4 p-4">
+          <!-- Left: Log Details (green area) -->
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="text-xs text-gray-500 mb-1">Coordenadas</div>
+                <div class="font-mono text-sm">
+                  {{ log.geoLocation.latitude.toFixed(6) }}, {{ log.geoLocation.longitude.toFixed(6) }}
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="text-xs text-gray-500 mb-1">Status da Câmera</div>
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span class="font-medium text-sm">Online</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Análise Automática -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+              <h4 class="font-medium text-blue-900 dark:text-blue-100 mb-1 flex items-center gap-2 text-sm">
+                <UIcon name="i-heroicons-information-circle" />
+                Análise Automática
+              </h4>
+              <p class="text-xs text-blue-800 dark:text-blue-200">
+                O sistema detectou uma probabilidade de {{ log.probability }}% de foco de incêndio nesta região.
+                A análise baseia-se em padrões térmicos e visuais capturados às {{ format(new Date(log.timestamp), 'HH:mm') }}.
+              </p>
+            </div>
+          </div>
+
+          <!-- Right: Map (blue area) -->
+          <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col">
+            <div class="px-3 py-2 bg-white dark:bg-gray-800 text-xs text-gray-500 font-medium flex items-center gap-1.5 shrink-0">
+              <UIcon name="i-heroicons-map-pin" class="w-3.5 h-3.5" />
+              Localização
+            </div>
+            <div ref="mapContainer" class="flex-1 min-h-40 w-full"></div>
+          </div>
+        </div>
+      </div>
+    </UCard>
+  </div>
+</template>

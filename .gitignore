@@ -13,6 +13,9 @@ node_modules
 logs
 *.log
 
+# mocks
+randomImages
+
 # Misc
 .DS_Store
 .fleet

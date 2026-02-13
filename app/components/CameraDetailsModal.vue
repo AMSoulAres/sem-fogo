@@ -44,7 +44,7 @@ const handleCommand = async (cmd: string) => {
 </script>
 
 <template>
-    <div v-if="isOpen" class="fixed inset-0 z-[100] flex items-center justify-center">
+    <div v-if="isOpen" class="fixed inset-0 z-100 flex items-center justify-center">
         <!-- Backdrop / Overlay -->
         <div class="absolute inset-0 bg-gray-900/80 backdrop-blur-sm transition-opacity" @click="close" />
 
@@ -148,7 +148,7 @@ const handleCommand = async (cmd: string) => {
                                     <span>{{ format(new Date(log.timestamp), 'dd/MM HH:mm:ss') }}</span>
                                 </div>
                                 <div class="mt-1 font-medium text-gray-900 dark:text-white">
-                                    Detecção de Fumaça ({{ log.probability }}%)
+                                    Probabilidade de Fogo ({{ log.probability }}%)
                                 </div>
                             </div>
                             <div v-if="cameraLogs.length === 0" class="text-center text-gray-500 py-4">

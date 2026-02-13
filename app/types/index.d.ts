@@ -24,6 +24,10 @@ export interface PriorityLog {
   cameraId: string
   cameraName: string
   imagesBase64: string[]
+  geoLocation: {
+    latitude: number
+    longitude: number
+  }
 }
 
 export interface CameraInfo {
@@ -46,6 +50,10 @@ export interface Log {
   fireProbability: number // 0-100
   quadrantZoom: number
   imagesBase64: string[]
+  geoLocation: {
+    latitude: number
+    longitude: number
+  }
 }
 
 export interface CameraLogsResponse {

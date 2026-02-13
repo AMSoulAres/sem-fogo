@@ -77,7 +77,8 @@ export const useCameraData = () => {
                     probability: log.fireProbability,
                     cameraId: log.cameraId,
                     cameraName: cameraName,
-                    imagesBase64: log.imagesBase64
+                    imagesBase64: log.imagesBase64,
+                    geoLocation: log.geoLocation
                 })
                 existingIds.add(stableId)
             }

@@ -10,6 +10,7 @@ interface MockLogConfig {
     fireProbability: number
     quadrantZoom: number
     imagesBase64: string[]
+    geoLocation: { latitude: number, longitude: number }
 }
 
 interface MockDB {
@@ -69,10 +70,10 @@ export const mockFactory = {
                     timestamp: formatISO(subMinutes(now, l.relativeMinutes)),
                     fireProbability: l.fireProbability,
                     quadrantZoom: l.quadrantZoom,
-                    imagesBase64: l.imagesBase64
+                    imagesBase64: l.imagesBase64,
+                    geoLocation: l.geoLocation
                 }
             })
-            // Ensure data is sorted descending (closest to now first)
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
 }
