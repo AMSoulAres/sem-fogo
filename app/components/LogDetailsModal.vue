@@ -82,9 +82,9 @@ watch(() => [isOpen.value, props.log], async ([open, logData]) => {
 
     <!-- Modal Content -->
     <UCard :ui="{
-      body: 'p-0',
-      header: 'p-4 border-b border-gray-200 dark:border-gray-800',
-      root: 'relative w-screen ml-30 mr-30 shadow-2xl z-10 bg-white dark:bg-gray-900 max-h-[90vh] overflow-hidden rounded-lg flex flex-col'
+      body: 'p-0 sm:p-0 h-full overflow-y-auto',
+      header: 'p-4 border-b border-gray-200 dark:border-gray-800 shrink-0',
+      root: 'relative w-full max-w-5xl mx-4 sm:mx-8 shadow-2xl z-10 bg-white dark:bg-gray-900 max-h-[90vh] rounded-lg flex flex-col'
     }">
       <template #header>
         <div class="flex items-center justify-between">
@@ -100,14 +100,14 @@ watch(() => [isOpen.value, props.log], async ([open, logData]) => {
         </div>
       </template>
 
-      <div v-if="log" class="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
+      <div v-if="log" class="p-4 bg-gray-50 dark:bg-gray-900">
         <!-- Hero Carousel (full width, centered, arrows on sides) -->
         <Carousel :log="log" />
 
         <!-- Bottom: 2-column grid — Details left, Map right -->
-        <div class="grid grid-cols-2 gap-4 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
           <!-- Left: Log Details (green area) -->
-          <div class="space-y-3">
+          <div class="space-y-4">
             <div class="grid grid-cols-2 gap-3">
               <div class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                 <div class="text-xs text-gray-500 mb-1">Coordenadas</div>
@@ -138,12 +138,12 @@ watch(() => [isOpen.value, props.log], async ([open, logData]) => {
           </div>
 
           <!-- Right: Map (blue area) -->
-          <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col">
-            <div class="px-3 py-2 bg-white dark:bg-gray-800 text-xs text-gray-500 font-medium flex items-center gap-1.5 shrink-0">
+          <div class="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col min-h-[200px]">
+            <div class="px-3 py-2 text-xs text-gray-500 font-medium flex items-center gap-1.5 border-b border-gray-200 dark:border-gray-700">
               <UIcon name="i-heroicons-map-pin" class="w-3.5 h-3.5" />
               Localização
             </div>
-            <div ref="mapContainer" class="flex-1 min-h-40 w-full"></div>
+            <div ref="mapContainer" class="flex-1 w-full h-full min-h-[250px]"></div>
           </div>
         </div>
       </div>
