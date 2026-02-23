@@ -101,12 +101,9 @@ watch(() => [isOpen.value, props.log], async ([open, logData]) => {
       </template>
 
       <div v-if="log" class="p-4 bg-gray-50 dark:bg-gray-900">
-        <!-- Hero Carousel (full width, centered, arrows on sides) -->
         <Carousel :log="log" />
 
-        <!-- Bottom: 2-column grid — Details left, Map right -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          <!-- Left: Log Details (green area) -->
           <div class="space-y-4">
             <div class="grid grid-cols-2 gap-3">
               <div class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -133,6 +130,17 @@ watch(() => [isOpen.value, props.log], async ([open, logData]) => {
               <p class="text-xs text-blue-800 dark:text-blue-200">
                 O sistema detectou uma probabilidade de {{ log.probability }}% de foco de incêndio nesta região.
                 A análise baseia-se em padrões térmicos e visuais capturados às {{ format(new Date(log.timestamp), 'HH:mm') }}.
+              </p>
+            </div>
+
+            <!-- Demais informações -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+              <h4 class="font-medium text-blue-900 dark:text-blue-100 mb-1 flex items-center gap-2 text-sm">
+                <UIcon name="i-heroicons-information-circle" />
+                Demais informações
+              </h4>
+              <p class="text-xs text-blue-800 dark:text-blue-200">
+                Espaço para informações adicionais.
               </p>
             </div>
           </div>

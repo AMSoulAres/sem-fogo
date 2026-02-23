@@ -126,7 +126,7 @@
       {
         "cameraId": "cam-1",
         "relativeMinutes": 0,
-        "fireProbability": 0,
+        "fireProbability": 90,
         "quadrantZoom": 1,
         "imagesBase64": [
           "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQlD4JX82qIbuiwO0VPg7gXxz910EKwmMxYzg&s",
@@ -140,7 +140,7 @@
       {
         "cameraId": "cam-1",
         "relativeMinutes": 10,
-        "fireProbability": 0,
+        "fireProbability": 50,
         "quadrantZoom": 4,
         "imagesBase64": [
           "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQlD4JX82qIbuiwO0VPg7gXxz910EKwmMxYzg&s",

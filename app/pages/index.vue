@@ -175,19 +175,48 @@ const openLogDetails = (log: PriorityLog) => {
               Nenhum log encontrado neste período.
             </div>
             <div v-for="log in filteredLogs" :key="log.id"
-              class="p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all duration-200 group bg-white dark:bg-gray-900 shadow-sm"
-              :class="log.probability > 50 ? 'border-red-200 dark:border-red-900/50' : 'border-gray-200 dark:border-gray-800'"
+              class="p-3 rounded-lg cursor-pointer transition-all duration-200 group"
+              :class="[
+                log.probability >= 70
+                  ? 'border border-red-500 bg-red-950/80 shadow-[0_0_12px_2px_rgba(239,68,68,0.45)] hover:shadow-[0_0_20px_4px_rgba(239,68,68,0.65)]'
+                  : log.probability >= 31
+                    ? 'border border-orange-500/60 bg-orange-950/40 shadow-sm hover:bg-orange-900/50'
+                    : 'border border-gray-700 hover:bg-gray-800 shadow-sm'
+              ]"
               @click="openLogDetails(log)">
-              
-              <div class="flex justify-between items-start mb-1">
-                <span class="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-1">{{ log.cameraName }}</span>
-                <UBadge :color="log.probability > 70 ? 'red' : log.probability > 30 ? 'orange' : 'green'" variant="soft" size="xs">
+
+              <div class="flex justify-between items-start mb-1 gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <UIcon
+                    v-if="log.probability >= 70"
+                    name="i-heroicons-fire"
+                    class="w-5 h-5 text-red-400 shrink-0"
+                  />
+                  <UIcon
+                    v-else-if="log.probability >= 31"
+                    name="i-heroicons-exclamation-triangle"
+                    class="w-5 h-5 text-orange-400 shrink-0"
+                  />
+                  <span
+                    class="font-medium text-base line-clamp-1"
+                    :class="log.probability >= 70 ? 'text-red-200 font-semibold' : log.probability >= 31 ? 'text-orange-200' : 'text-gray-100'"
+                  >{{ log.cameraName }}</span>
+                </div>
+                <UBadge
+                  :color="log.probability >= 70 ? 'error' : log.probability >= 31 ? 'warning' : 'success'"
+                  :variant="'soft'"
+                  size="lg"
+                  :class="log.probability >= 70 ? 'font-bold tracking-wide' : ''"
+                >
                   {{ log.probability }}%
                 </UBadge>
               </div>
-              
-              <div class="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
-                <UIcon name="i-heroicons-clock" class="w-3 h-3" />
+
+              <div
+                class="flex items-center text-sm gap-2"
+                :class="log.probability >= 70 ? 'text-red-300' : log.probability >= 31 ? 'text-orange-300' : 'text-gray-200'"
+              >
+                <UIcon name="i-heroicons-clock" class="w-4 h-4" />
                 {{ format(new Date(log.timestamp), 'HH:mm:ss') }}
               </div>
             </div>
@@ -233,4 +262,5 @@ const openLogDetails = (log: PriorityLog) => {
 .slide-left-leave-to {
   transform: translateX(100%);
 }
+
 </style>
