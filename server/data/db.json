@@ -36554,5 +36554,24 @@
         }
       }
     ]
+  },
+  "users": [
+    {
+      "id": "1",
+      "username": "admin",
+      "passwordHash": "$2b$10$..xOYEvVChwHFVTIfvsvXeky8MI5TSBuYRxAYnmsxDFb3T02Zr0te",
+      "name": "Administrador"
+    }
+  ],
+  "preferences": {
+    "1": {
+      "groups": [
+        "Favoritas",
+        "Zona Norte",
+        "Zona Sul",
+        "Parques"
+      ],
+      "camerasPerPage": 2
+    }
   }
 }

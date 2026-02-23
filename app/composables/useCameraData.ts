@@ -1,9 +1,39 @@
-import { sub, formatISO } from 'date-fns'
+import { formatISO } from 'date-fns'
 import type { CameraInfo, Log, PriorityLog } from '~/types'
 import { useIntervalFn } from '@vueuse/core'
 
+interface UserPreferences {
+    groups: string[]
+    camerasPerPage: number
+}
+
 export const useCameraData = () => {
-    const groups = useLocalStorage<string[]>('camera-groups', ['Favoritas', 'Zona Norte', 'Zona Sul', 'Parques'])
+    // Preferences loaded from API (per-user)
+    const groups = ref<string[]>([])
+    const camerasPerPage = ref<number>(2)
+    const prefsLoaded = ref(false)
+
+    const loadPreferences = async () => {
+        try {
+            const prefs = await $fetch<UserPreferences>('/api/preferences')
+            groups.value = prefs.groups
+            camerasPerPage.value = prefs.camerasPerPage
+        } catch {
+            // fallback defaults if not logged in yet
+            groups.value = ['Favoritas', 'Zona Norte', 'Zona Sul', 'Parques']
+            camerasPerPage.value = 2
+        } finally {
+            prefsLoaded.value = true
+        }
+    }
+
+    const savePreferences = async (patch: Partial<UserPreferences>) => {
+        try {
+            await $fetch('/api/preferences', { method: 'PATCH', body: patch })
+        } catch (e) {
+            console.error('Failed to save preferences', e)
+        }
+    }
 
     const camerasInfo = ref<CameraInfo[]>([])
 
@@ -18,10 +48,7 @@ export const useCameraData = () => {
         try {
             const data = await $fetch<CameraInfo[]>('/api/cameras')
             if (data) {
-                // Merge/Update camera info
                 camerasInfo.value = data
-
-                // After fetching cameras, fetch logs for each
                 await fetchLogsForCameras(data)
             }
         } catch (e) {
@@ -30,13 +57,8 @@ export const useCameraData = () => {
     }
 
     const fetchLogsForCameras = async (cameras: CameraInfo[]) => {
-        // Fetch logs for each camera
-        // In a real app we might batch this or use a single endpoint with query params
-        // For this task, we iterate as requested (request for each camera)
-
         const promises = cameras.map(async (camera) => {
             try {
-                // Defaulting to last 24h as per requirement
                 const response = await $fetch<{ logs: Log[] }>('/api/logs', {
                     query: { cameraId: camera.id }
                 })
@@ -44,15 +66,10 @@ export const useCameraData = () => {
                 const cameraLogs = response.logs || []
 
                 if (cameraLogs.length > 0) {
-                    // Update latest log for this camera
-                    // Logs are sorted desc by timestamp from API
                     const newest = cameraLogs[0]
-
                     if (newest) {
                         latestLogs.value[camera.id] = newest
                     }
-
-                    // Add to global logs list (PriorityLog format)
                     processLogs(cameraLogs, camera.name)
                 }
             } catch (e) {
@@ -67,7 +84,6 @@ export const useCameraData = () => {
         const existingIds = new Set(logs.value.map(l => l.id))
 
         newLogs.forEach(log => {
-            // Create stable ID based on cameraId + timestamp
             const stableId = `${log.cameraId}-${new Date(log.timestamp).getTime()}`
 
             if (!existingIds.has(stableId)) {
@@ -84,14 +100,13 @@ export const useCameraData = () => {
             }
         })
 
-        // Sort by timestamp descending
         logs.value.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-        // Keep manageable size
         if (logs.value.length > 1000) logs.value = logs.value.slice(0, 1000)
     }
 
     // Initial fetch
+    loadPreferences()
     fetchCameras()
 
     // Poll every 10 minutes (600,000 ms)
@@ -104,7 +119,6 @@ export const useCameraData = () => {
             return {
                 ...info,
                 fireProbability: log?.fireProbability ?? 0,
-                // Taking the first image if available
                 imageUrl: log?.imagesBase64?.[0] ?? '',
                 groups: info.groups
             }
@@ -125,6 +139,7 @@ export const useCameraData = () => {
     const createGroup = (name: string) => {
         if (!groups.value.includes(name)) {
             groups.value.push(name)
+            savePreferences({ groups: groups.value })
         }
     }
 
@@ -134,19 +149,24 @@ export const useCameraData = () => {
         const idx = groups.value.indexOf(oldName)
         if (idx === -1) return
         groups.value[idx] = trimmed
-        // Update all cameras that belong to the old group
         camerasInfo.value.forEach(camera => {
             const gi = camera.groups.indexOf(oldName)
             if (gi !== -1) camera.groups[gi] = trimmed
         })
+        savePreferences({ groups: groups.value })
     }
 
     const deleteGroup = (name: string) => {
         groups.value = groups.value.filter(g => g !== name)
-        // Remove the group from all cameras
         camerasInfo.value.forEach(camera => {
             camera.groups = camera.groups.filter(g => g !== name)
         })
+        savePreferences({ groups: groups.value })
+    }
+
+    const updateCamerasPerPage = (value: number) => {
+        camerasPerPage.value = value
+        savePreferences({ camerasPerPage: value })
     }
 
     const sendCameraCommand = (cameraId: string, command: string) => {
@@ -158,10 +178,13 @@ export const useCameraData = () => {
         cameras,
         logs,
         groups,
+        camerasPerPage,
+        prefsLoaded,
         toggleGroup,
         createGroup,
         renameGroup,
         deleteGroup,
+        updateCamerasPerPage,
         sendCameraCommand
     }
 }

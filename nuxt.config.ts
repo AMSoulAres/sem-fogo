@@ -3,7 +3,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@vueuse/nuxt'
+    '@vueuse/nuxt',
+    'nuxt-auth-utils'
   ],
 
   devtools: {
@@ -19,6 +20,13 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2024-07-11',
+
+  runtimeConfig: {
+    session: {
+      // At least 32 chars — override via NUXT_SESSION_PASSWORD in production
+      password: 'sem-fogo-session-secret-dev-32xx'
+    }
+  },
 
   eslint: {
     config: {

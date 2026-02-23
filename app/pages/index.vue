@@ -2,16 +2,31 @@
 import { format } from 'date-fns'
 import type { PriorityLog, Camera } from '~/types'
 
-const { cameras, logs, groups, toggleGroup } = useCameraData()
+const { cameras, logs, groups, camerasPerPage, updateCamerasPerPage, toggleGroup } = useCameraData()
+const { user, clear: clearSession } = useUserSession()
 
 const selectedGroup = useLocalStorage('selected-group', 'Favoritas')
 const isLogsOpen = useLocalStorage('logs-open', false)
 const isGroupManagerOpen = ref(false)
 
 const search = ref('')
-
 const currentPage = ref(0)
-const itemsPerPage = 2
+
+const handleLogout = async () => {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  await clearSession()
+  await navigateTo('/login')
+}
+
+const userMenuItems = computed(() => [
+  [{ label: (user.value as any)?.name ?? (user.value as any)?.username ?? 'Usuário', disabled: true }],
+  [{ label: 'Câmeras por página', disabled: true }],
+  [1, 2, 3, 4].map(n => ({
+    label: String(n) + (camerasPerPage.value === n ? ' ✓' : ''),
+    click: () => { updateCamerasPerPage(n); currentPage.value = 0 }
+  })),
+  [{ label: 'Sair', icon: 'i-heroicons-arrow-right-on-rectangle', color: 'error' as const, click: handleLogout }]
+])
 
 watch([selectedGroup, search], () => {
   currentPage.value = 0
@@ -32,11 +47,11 @@ const filteredCameras = computed(() => {
   return result
 })
 
-const totalPages = computed(() => Math.ceil(filteredCameras.value.length / itemsPerPage))
+const totalPages = computed(() => Math.ceil(filteredCameras.value.length / camerasPerPage.value))
 
 const displayedCameras = computed(() => {
-  const start = currentPage.value * itemsPerPage
-  return filteredCameras.value.slice(start, start + itemsPerPage)
+  const start = currentPage.value * camerasPerPage.value
+  return filteredCameras.value.slice(start, start + camerasPerPage.value)
 })
 
 const nextPage = () => {
@@ -111,6 +126,10 @@ const openLogDetails = (log: PriorityLog) => {
             @click="isGroupManagerOpen = true" />
           <UButton icon="i-heroicons-list-bullet" color="neutral" :variant="isLogsOpen ? 'solid' : 'ghost'"
             @click="isLogsOpen = !isLogsOpen" />
+          <!-- User menu -->
+          <UDropdownMenu :items="userMenuItems">
+            <UButton icon="i-heroicons-user-circle" color="neutral" variant="ghost" />
+          </UDropdownMenu>
         </div>
       </template>
     </UDashboardNavbar>

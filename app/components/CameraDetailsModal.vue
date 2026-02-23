@@ -64,7 +64,6 @@ const handleCommand = async (cmd: string) => {
                     <div class="flex-1 relative overflow-hidden flex items-center justify-center bg-gray-950">
                         <img :src="camera.imageUrl" :alt="camera.name" class="w-full h-full object-contain" />
                         <div class="absolute bottom-4 left-4 text-white drop-shadow-md">
-                            <div class="text-xs opacity-80">LAT: -15.7934 LONG: -47.8823</div>
                             <div class="text-lg font-bold">{{ camera.location }}</div>
                         </div>
                     </div>
@@ -121,6 +120,7 @@ const handleCommand = async (cmd: string) => {
                             <div>
                                 <div class="text-sm font-medium">Vento: 12 km/h NE</div>
                                 <div class="text-sm font-medium">Umidade: 45%</div>
+
                             </div>
                         </div>
                     </div>
