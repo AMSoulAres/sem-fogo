@@ -128,6 +128,27 @@ export const useCameraData = () => {
         }
     }
 
+    const renameGroup = (oldName: string, newName: string) => {
+        const trimmed = newName.trim()
+        if (!trimmed || trimmed === oldName || groups.value.includes(trimmed)) return
+        const idx = groups.value.indexOf(oldName)
+        if (idx === -1) return
+        groups.value[idx] = trimmed
+        // Update all cameras that belong to the old group
+        camerasInfo.value.forEach(camera => {
+            const gi = camera.groups.indexOf(oldName)
+            if (gi !== -1) camera.groups[gi] = trimmed
+        })
+    }
+
+    const deleteGroup = (name: string) => {
+        groups.value = groups.value.filter(g => g !== name)
+        // Remove the group from all cameras
+        camerasInfo.value.forEach(camera => {
+            camera.groups = camera.groups.filter(g => g !== name)
+        })
+    }
+
     const sendCameraCommand = (cameraId: string, command: string) => {
         console.log(`Sending command ${command} to camera ${cameraId}`)
         return new Promise(resolve => setTimeout(resolve, 800))
@@ -139,6 +160,8 @@ export const useCameraData = () => {
         groups,
         toggleGroup,
         createGroup,
+        renameGroup,
+        deleteGroup,
         sendCameraCommand
     }
 }

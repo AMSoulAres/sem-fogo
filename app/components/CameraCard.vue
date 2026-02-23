@@ -9,15 +9,55 @@ const emit = defineEmits(['toggle-group', 'open-details'])
 
 const { groups, createGroup } = useCameraData()
 
-const statusColor = computed(() => {
-  return props.camera.status === 'online' ? 'bg-green-500' : 'bg-red-500'
+const isOnline = computed(() => props.camera.status === 'online')
+const prob = computed(() => props.camera.fireProbability ?? 0)
+
+// Risk tier
+const riskTier = computed(() => {
+  if (prob.value > 70) return 'critical'
+  if (prob.value > 50) return 'high'
+  if (prob.value > 20) return 'medium'
+  return 'safe'
 })
 
-const probabilityColor = computed(() => {
-  if (props.camera.fireProbability > 70) return 'text-red-600'
-  if (props.camera.fireProbability > 50) return 'text-orange-500'
-  return 'text-green-600'
-})
+const riskLabel = computed(() => ({
+  critical: 'CRÍTICO',
+  high: 'ALTO',
+  medium: 'MÉDIO',
+  safe: 'BAIXO',
+}[riskTier.value]))
+
+// Card border glow class
+const cardBorderClass = computed(() => ({
+  critical: 'ring-2 ring-red-600 shadow-[0_0_18px_2px_rgba(220,38,38,0.45)]',
+  high:     'ring-2 ring-orange-500 shadow-[0_0_12px_2px_rgba(249,115,22,0.3)]',
+  medium:   'ring-1 ring-yellow-400/60',
+  safe:     '',
+}[riskTier.value]))
+
+// Probability text colour
+const probabilityColor = computed(() => ({
+  critical: 'text-red-500',
+  high:     'text-orange-400',
+  medium:   'text-yellow-400',
+  safe:     'text-emerald-400',
+}[riskTier.value]))
+
+// Badge chip colour
+const riskBadgeClass = computed(() => ({
+  critical: 'bg-red-600/90 text-white',
+  high:     'bg-orange-500/90 text-white',
+  medium:   'bg-yellow-500/90 text-black',
+  safe:     'bg-emerald-600/80 text-white',
+}[riskTier.value]))
+
+// Overlay gradient intensity
+const overlayGradient = computed(() => ({
+  critical: 'from-black/95 via-red-950/60 to-transparent',
+  high:     'from-black/90 via-orange-950/40 to-transparent',
+  medium:   'from-black/80 to-transparent',
+  safe:     'from-black/70 to-transparent',
+}[riskTier.value]))
 
 const newGroup = ref('')
 
@@ -27,41 +67,69 @@ const addNewGroup = () => {
   emit('toggle-group', props.camera.id, newGroup.value)
   newGroup.value = ''
 }
-
 </script>
 
 <template>
-  <UCard :ui="{ body: 'p-0 sm:p-0', header: 'p-3 sm:p-3' }">
+  <UCard
+    :ui="{ body: 'p-0 sm:p-0', header: 'p-3 sm:p-3 border-b border-gray-200 dark:border-gray-700' }"
+    class="overflow-hidden transition-all duration-300"
+    :class="cardBorderClass"
+  >
+    <!-- ── Header ─────────────────────────────────────────── -->
     <template #header>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2 overflow-hidden">
-          <div class="w-2 h-2 rounded-full shrink-0" :class="statusColor" />
-          <h3 class="font-semibold text-sm truncate">{{ camera.name }}</h3>
+      <div class="flex items-center justify-between gap-2">
+        <!-- Status dot + name -->
+        <div class="flex items-center gap-2 overflow-hidden min-w-0">
+          <span
+            class="w-2 h-2 rounded-full shrink-0"
+            :class="isOnline ? 'bg-emerald-400 shadow-[0_0_6px_2px_rgba(52,211,153,0.6)]' : 'bg-red-500'"
+          />
+          <h3 class="font-semibold text-sm truncate text-gray-900 dark:text-white">
+            {{ camera.name }}
+          </h3>
         </div>
 
-        <div class="flex items-center">
+        <!-- Group bookmark -->
+        <div class="flex items-center gap-1 shrink-0">
           <UPopover>
-            <UButton icon="i-heroicons-bookmark" :color="camera.groups.length > 0 ? 'primary' : 'neutral'"
-              variant="ghost" size="xs" />
-
+            <UButton
+              icon="i-heroicons-bookmark"
+              :color="camera.groups.length > 0 ? 'primary' : 'neutral'"
+              variant="ghost"
+              size="xs"
+            />
             <template #content>
               <div class="p-3 w-64 space-y-3">
                 <h4 class="font-medium text-xs text-gray-500 uppercase">Grupos da Câmera</h4>
-
                 <div class="space-y-1 max-h-48 overflow-y-auto">
-                  <div v-for="group in groups" :key="group"
-                    class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-800 rounded">
-                    <UCheckbox :model-value="camera.groups.includes(group)"
-                      @update:model-value="$emit('toggle-group', camera.id, group)" />
+                  <div
+                    v-for="group in groups"
+                    :key="group"
+                    class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                  >
+                    <UCheckbox
+                      :model-value="camera.groups.includes(group)"
+                      @update:model-value="$emit('toggle-group', camera.id, group)"
+                    />
                     <span class="text-sm truncate flex-1">{{ group }}</span>
                   </div>
                 </div>
-
                 <div class="pt-2 border-t border-gray-100 dark:border-gray-800 flex gap-1">
-                  <UInput v-model="newGroup" placeholder="Novo grupo..." size="xs" class="flex-1"
-                    @keyup.enter="addNewGroup" />
-                  <UButton icon="i-heroicons-plus" size="xs" color="neutral" variant="solid" @click="addNewGroup"
-                    :disabled="!newGroup" />
+                  <UInput
+                    v-model="newGroup"
+                    placeholder="Novo grupo..."
+                    size="xs"
+                    class="flex-1"
+                    @keyup.enter="addNewGroup"
+                  />
+                  <UButton
+                    icon="i-heroicons-plus"
+                    size="xs"
+                    color="neutral"
+                    variant="solid"
+                    :disabled="!newGroup"
+                    @click="addNewGroup"
+                  />
                 </div>
               </div>
             </template>
@@ -70,28 +138,73 @@ const addNewGroup = () => {
       </div>
     </template>
 
-    <div class="relative aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden group cursor-pointer"
-      @click="$emit('open-details', camera)">
-      <img :src="camera.imageUrl" :alt="camera.name"
-        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+    <!-- ── Image + overlay ───────────────────────────────── -->
+    <div
+      class="relative aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden group cursor-pointer"
+      @click="$emit('open-details', camera)"
+    >
+      <img
+        :src="camera.imageUrl"
+        :alt="camera.name"
+        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+      />
 
-      <!-- Overlay Icon on Hover -->
+      <!-- Expand icon on hover -->
       <div
-        class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+      >
         <UIcon name="i-heroicons-arrows-pointing-out" class="text-white w-10 h-10 drop-shadow-lg" />
       </div>
 
-      <div v-if="camera.fireProbability > 0"
-        class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/90 to-transparent p-3 flex items-end justify-between">
+      <!-- Fire probability overlay -->
+      <div
+        v-if="prob > 0"
+        class="absolute bottom-0 left-0 right-0 bg-gradient-to-t p-3 flex items-end justify-between"
+        :class="overlayGradient"
+      >
+        <!-- Left: label + value -->
         <div class="flex flex-col">
-          <span class="text-[10px] text-gray-300 uppercase font-bold tracking-wider">Probabilidade de Fogo</span>
-          <span class="text-lg font-bold" :class="probabilityColor">
-            {{ camera.fireProbability }}%
+          <span class="text-[10px] text-gray-300 uppercase font-bold tracking-wider leading-none mb-0.5">
+            Probabilidade de Fogo
           </span>
+          <div class="flex items-baseline gap-1.5">
+            <span class="text-2xl font-extrabold leading-none" :class="probabilityColor">
+              {{ prob }}%
+            </span>
+            <!-- Risk badge -->
+            <span
+              class="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider leading-none"
+              :class="riskBadgeClass"
+            >
+              {{ riskLabel }}
+            </span>
+          </div>
         </div>
 
-        <div v-if="camera.fireProbability > 50" class="animate-pulse">
-          <UIcon name="i-heroicons-exclamation-triangle-20-solid" class="text-red-500 w-6 h-6" />
+        <!-- Right: alert icons -->
+        <div class="flex flex-col items-center gap-1">
+          <!-- Critical: double pulse -->
+          <template v-if="riskTier === 'critical'">
+            <div class="relative flex items-center justify-center">
+              <span class="absolute inline-flex h-8 w-8 rounded-full bg-red-500 opacity-60 animate-ping" />
+              <UIcon name="i-heroicons-fire-solid" class="relative text-red-400 w-7 h-7 drop-shadow-md" />
+            </div>
+            <span class="text-[9px] text-red-400 font-bold uppercase tracking-widest animate-pulse">
+              Alerta!
+            </span>
+          </template>
+
+          <!-- High: single pulse warning -->
+          <template v-else-if="riskTier === 'high'">
+            <div class="animate-pulse">
+              <UIcon name="i-heroicons-exclamation-triangle-20-solid" class="text-orange-400 w-6 h-6" />
+            </div>
+          </template>
+
+          <!-- Medium: static warning -->
+          <template v-else-if="riskTier === 'medium'">
+            <UIcon name="i-heroicons-exclamation-triangle-20-solid" class="text-yellow-400 w-5 h-5" />
+          </template>
         </div>
       </div>
     </div>

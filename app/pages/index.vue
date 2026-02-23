@@ -6,6 +6,7 @@ const { cameras, logs, groups, toggleGroup } = useCameraData()
 
 const selectedGroup = useLocalStorage('selected-group', 'Favoritas')
 const isLogsOpen = useLocalStorage('logs-open', false)
+const isGroupManagerOpen = ref(false)
 
 const search = ref('')
 
@@ -106,6 +107,8 @@ const openLogDetails = (log: PriorityLog) => {
           <UInput v-model="search" icon="i-heroicons-magnifying-glass" placeholder="Buscar..." class="w-48" />
           <USelectMenu v-model="selectedGroup" :items="['Todas', ...groups]" class="w-48">
           </USelectMenu>
+          <UButton icon="i-heroicons-cog-6-tooth" color="neutral" variant="ghost" title="Gerenciar Grupos"
+            @click="isGroupManagerOpen = true" />
           <UButton icon="i-heroicons-list-bullet" color="neutral" :variant="isLogsOpen ? 'solid' : 'ghost'"
             @click="isLogsOpen = !isLogsOpen" />
         </div>
@@ -229,6 +232,7 @@ const openLogDetails = (log: PriorityLog) => {
     <!-- Modais -->
     <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera" />
     <LogDetailsModal v-if="selectedLog" v-model="isLogModalOpen" :log="selectedLog" />
+    <GroupManagerModal v-if="isGroupManagerOpen" @close="isGroupManagerOpen = false" />
 
   </UDashboardPanel>
 </template>

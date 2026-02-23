@@ -84,7 +84,7 @@ watch(() => [isOpen.value, props.log], async ([open, logData]) => {
     <UCard :ui="{
       body: 'p-0 sm:p-0 h-full overflow-y-auto',
       header: 'p-4 border-b border-gray-200 dark:border-gray-800 shrink-0',
-      root: 'relative w-full max-w-5xl mx-4 sm:mx-8 shadow-2xl z-10 bg-white dark:bg-gray-900 max-h-[90vh] rounded-lg flex flex-col'
+      root: 'relative w-full max-w-[80vw] mx-4 sm:mx-8 shadow-2xl z-10 bg-white dark:bg-gray-900 max-h-[95vh] rounded-lg flex flex-col'
     }">
       <template #header>
         <div class="flex items-center justify-between">

@@ -159,8 +159,8 @@ const handleCommand = async (cmd: string) => {
                                         >{{ log.probability >= 70 ? 'Alto Risco' : log.probability >= 31 ? 'Risco Moderado' : 'Baixo Risco' }}</span>
                                     </div>
                                     <UBadge
-                                        :color="log.probability >= 70 ? 'red' : log.probability >= 31 ? 'orange' : 'green'"
-                                        :variant="log.probability >= 70 ? 'solid' : 'soft'"
+                                        :color="log.probability >= 70 ? 'error' : log.probability >= 31 ? 'warning' : 'success'"
+                                        :variant="'soft'"
                                         size="lg"
                                         :class="log.probability >= 70 ? 'font-bold tracking-wide' : ''"
                                     >
