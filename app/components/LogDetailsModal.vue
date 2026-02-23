@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PriorityLog } from '~/types'
 import { format } from 'date-fns'
-import 'leaflet/dist/leaflet.css'
+import mapImg from '../../server/data/mapMock.png'
 import Carousel from './Carousel.vue'
 
 const props = defineProps<{
@@ -20,56 +20,11 @@ const close = () => {
   isOpen.value = false
 }
 
-// Map Logic
-const mapContainer = ref<HTMLElement | null>(null)
-let map: any | null = null
-let L: any = null
-
-onMounted(async () => {
-  if (import.meta.client) {
-    L = (await import('leaflet')).default
-
-    // Fix Leaflet's default icon path issues
-    delete (L.Icon.Default.prototype as any)._getIconUrl
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    })
-  }
-})
-
 // Initialize Map when modal opens and log is available
 watch(() => [isOpen.value, props.log], async ([open, logData]) => {
-  if (open && logData && mapContainer.value && L) {
-    // Wait for next tick to ensure container is rendered dimensions
+  if (open && logData) {
     await nextTick()
-
     const log = logData as PriorityLog
-
-    if (!map) {
-      map = L.map(mapContainer.value).setView([log.geoLocation.latitude, log.geoLocation.longitude], 13)
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(map)
-    } else {
-      map.invalidateSize()
-      map.setView([log.geoLocation.latitude, log.geoLocation.longitude], 13)
-    }
-
-    // Clear existing layers (markers)
-    map.eachLayer((layer: any) => {
-      if (layer instanceof L.Marker) {
-        map?.removeLayer(layer)
-      }
-    })
-
-    // Add Marker
-    L.marker([log.geoLocation.latitude, log.geoLocation.longitude])
-      .addTo(map)
-      .bindPopup(`<b>${log.cameraName}</b><br>Probabilidade: ${log.probability}%`)
-      .openPopup()
   }
 }, { flush: 'post' })
 
@@ -151,7 +106,9 @@ watch(() => [isOpen.value, props.log], async ([open, logData]) => {
               <UIcon name="i-heroicons-map-pin" class="w-3.5 h-3.5" />
               Localização
             </div>
-            <div ref="mapContainer" class="flex-1 w-full h-full min-h-[250px]"></div>
+            <div class="flex-1 w-full h-full min-h-[250px]">
+              <img :src="mapImg" alt="" class="w-full h-full object-cover">
+            </div>
           </div>
         </div>
       </div>

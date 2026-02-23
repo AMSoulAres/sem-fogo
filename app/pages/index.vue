@@ -21,9 +21,10 @@ const handleLogout = async () => {
 const userMenuItems = computed(() => [
   [{ label: (user.value as any)?.name ?? (user.value as any)?.username ?? 'Usuário', disabled: true }],
   [{ label: 'Câmeras por página', disabled: true }],
-  [1, 2, 3, 4].map(n => ({
+  [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20].map(n => ({
     label: String(n) + (camerasPerPage.value === n ? ' ✓' : ''),
-    click: () => { updateCamerasPerPage(n); currentPage.value = 0 }
+    click: () => { updateCamerasPerPage(n); currentPage.value = 0 },
+    onSelect: () => { updateCamerasPerPage(n); currentPage.value = 0 }
   })),
   [{ label: 'Sair', icon: 'i-heroicons-arrow-right-on-rectangle', color: 'error' as const, click: handleLogout }]
 ])
@@ -53,6 +54,41 @@ const displayedCameras = computed(() => {
   const start = currentPage.value * camerasPerPage.value
   return filteredCameras.value.slice(start, start + camerasPerPage.value)
 })
+
+// Compute grid cols based on item count
+const gridCols = computed(() => {
+  const n = displayedCameras.value.length
+  if (n <= 1) return 1
+  if (n <= 2) return 2
+  if (n <= 4) return 2
+  if (n <= 6) return 3
+  if (n <= 9) return 3
+  return 4
+})
+
+const gridRows = computed(() => {
+  const n = displayedCameras.value.length
+  const cols = gridCols.value
+  return Math.ceil(n / cols)
+})
+
+// Static map so Tailwind can scan all classes at build time
+const colsClassMap: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+}
+const rowsClassMap: Record<number, string> = {
+  1: 'grid-rows-1',
+  2: 'grid-rows-2',
+  3: 'grid-rows-3',
+  4: 'grid-rows-4',
+}
+
+const gridColsClass = computed(() =>
+  colsClassMap[gridCols.value] ?? 'grid-cols-2'
+)
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value - 1) currentPage.value++
@@ -140,32 +176,39 @@ const openLogDetails = (log: PriorityLog) => {
       <Timeline :logs="filteredAllLogs" @select-time="handleTimeSelection" />
 
       <!-- Main Content: Cameras -->
-      <div class="flex-1 flex flex-col p-6 bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
+      <div class="flex-1 flex flex-col p-4 bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
 
-        <div class="flex-1 flex items-center justify-center relative">
+        <div class="flex-1 flex items-start justify-center relative min-h-0 overflow-y-auto py-2">
           <UButton v-if="currentPage > 0" icon="i-heroicons-chevron-left"
-            class="absolute left-0 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
+            class="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
             @click="prevPage" />
 
           <!-- Camera Grid (Slides) -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-h-[80vh]">
+          <div
+            class="grid gap-3 w-full px-1 py-1"
+            :class="gridColsClass"
+          >
             <TransitionGroup name="fade">
-              <div v-for="camera in displayedCameras" :key="camera.id" class="h-full flex flex-col">
-                <CameraCard :camera="camera" class="h-full flex flex-col justify-between" @toggle-group="toggleGroup"
-                  @open-details="openDetails" />
+              <div v-for="camera in displayedCameras" :key="camera.id">
+                <CameraCard
+                  :camera="camera"
+                  :compact="gridCols >= 4"
+                  @toggle-group="toggleGroup"
+                  @open-details="openDetails"
+                />
               </div>
             </TransitionGroup>
 
             <!-- If Empty -->
             <div v-if="displayedCameras.length === 0"
-              class="col-span-3 flex flex-col items-center justify-center text-gray-400">
+              class="col-span-4 flex flex-col items-center justify-center text-gray-400 py-16">
               <UIcon name="i-heroicons-video-camera-slash" class="w-16 h-16 mb-4" />
               <p class="text-xl">Nenhuma câmera encontrada.</p>
             </div>
           </div>
 
           <UButton v-if="currentPage < totalPages - 1" icon="i-heroicons-chevron-right"
-            class="absolute right-0 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
+            class="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
             @click="nextPage" />
         </div>
 
