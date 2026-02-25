@@ -81,7 +81,7 @@ const activeStreamForThisCamera = computed(() => {
             <template #right>
                 <div class="flex items-center gap-2">
                     <UBadge :color="camera.status === 'online' ? 'success' : 'error'" variant="soft">
-                        {{ camera.status === 'online' ? 'Gravando' : 'Offline' }}
+                        {{ camera.status === 'online' ? 'Online' : 'Offline' }}
                     </UBadge>
                 </div>
             </template>

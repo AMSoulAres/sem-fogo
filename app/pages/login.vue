@@ -32,7 +32,6 @@ const handleLogin = async () => {
         </div>
 
         <div class="relative w-full max-w-sm">
-            <!-- Logo / Brand -->
             <div class="text-center mb-8">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-orange-600/20 border border-orange-600/30 rounded-2xl mb-4">
                     <UIcon name="i-heroicons-fire" class="w-8 h-8 text-orange-400" />
@@ -41,7 +40,6 @@ const handleLogin = async () => {
                 <p class="text-sm text-gray-400 mt-1">Monitoramento de Incêndios</p>
             </div>
 
-            <!-- Card -->
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
                 <h2 class="text-lg font-semibold text-white mb-6">Entrar</h2>
 

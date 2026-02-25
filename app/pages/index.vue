@@ -2,12 +2,24 @@
 import { format } from 'date-fns'
 import type { PriorityLog, Camera } from '~/types'
 
+const logsProbabilityLabel = {
+  critical: {
+    min: 50,
+    max: 70
+  },
+  warning: {
+    min: 70,
+    max: 100
+  }
+}
+
 const { cameras, logs, groups, camerasPerPage, updateCamerasPerPage, toggleGroup } = useCameraData()
 const { user, clear: clearSession } = useUserSession()
 
 const selectedGroup = useLocalStorage('selected-group', 'Favoritas')
 const isLogsOpen = useLocalStorage('logs-open', false)
 const isGroupManagerOpen = ref(false)
+const logPrioritySelected = ref('Sem filtro');
 
 const search = ref('')
 const currentPage = ref(0)
@@ -54,7 +66,17 @@ const displayedCameras = computed(() => {
   const start = currentPage.value * camerasPerPage.value
   return filteredCameras.value.slice(start, start + camerasPerPage.value)
 })
-
+const gridRows = computed(() => {
+  const n = displayedCameras.value.length
+  const cols = gridCols.value
+  return Math.ceil(n / cols)
+})
+const rowsClassMap: Record<number, string> = {
+  1: 'grid-rows-1',
+  2: 'grid-rows-2',
+  3: 'grid-rows-3',
+  4: 'grid-rows-4',
+}
 // Compute grid cols based on item count
 const gridCols = computed(() => {
   const n = displayedCameras.value.length
@@ -66,12 +88,6 @@ const gridCols = computed(() => {
   return 4
 })
 
-const gridRows = computed(() => {
-  const n = displayedCameras.value.length
-  const cols = gridCols.value
-  return Math.ceil(n / cols)
-})
-
 // Static map so Tailwind can scan all classes at build time
 const colsClassMap: Record<number, string> = {
   1: 'grid-cols-1',
@@ -79,12 +95,7 @@ const colsClassMap: Record<number, string> = {
   3: 'grid-cols-3',
   4: 'grid-cols-4',
 }
-const rowsClassMap: Record<number, string> = {
-  1: 'grid-rows-1',
-  2: 'grid-rows-2',
-  3: 'grid-rows-3',
-  4: 'grid-rows-4',
-}
+
 
 const gridColsClass = computed(() =>
   colsClassMap[gridCols.value] ?? 'grid-cols-2'
@@ -109,7 +120,7 @@ const filteredAllLogs = computed(() => {
 
 const recentLogs = computed(() => filteredAllLogs.value.slice(0, 50)) // Increased to 50 for better context
 
-const filteredLogs = computed(() => {
+const filteredTimeLogs = computed(() => {
   if (!selectedTime.value) return recentLogs.value
   const start = new Date(selectedTime.value.getTime())
   // 15 min window as per timeline segments
@@ -118,6 +129,15 @@ const filteredLogs = computed(() => {
   return filteredAllLogs.value.filter(log => {
     const logTime = new Date(log.timestamp)
     return logTime >= start && logTime < end
+  })
+})
+
+const logPriorityFiltered = computed(() => {
+  return filteredTimeLogs.value.filter(log => {
+    if (logPrioritySelected.value == 'Sem filtro') return true
+    if (logPrioritySelected.value == 'Moderado') return log.probability >= logsProbabilityLabel.critical.min && log.probability < logsProbabilityLabel.critical.max
+    if (logPrioritySelected.value == 'Crítico') return log.probability >= logsProbabilityLabel.warning.min
+    return false
   })
 })
 
@@ -139,8 +159,6 @@ const openLogDetails = (log: PriorityLog) => {
   navigateTo(`/log/${log.id}`)
 }
 
-// Logs Filtering
-const showAlertsOnly = ref(false)
 
 </script>
 
@@ -157,7 +175,7 @@ const showAlertsOnly = ref(false)
             @click="isGroupManagerOpen = true" />
           <UButton icon="i-heroicons-list-bullet" color="neutral" :variant="isLogsOpen ? 'solid' : 'ghost'"
             @click="isLogsOpen = !isLogsOpen" />
-          <!-- User menu -->
+          <!-- Menu -->
           <UDropdownMenu :items="userMenuItems">
             <UButton icon="i-heroicons-user-circle" color="neutral" variant="ghost" />
           </UDropdownMenu>
@@ -167,10 +185,10 @@ const showAlertsOnly = ref(false)
 
     <div class="flex-1 flex overflow-hidden relative h-full bg-gray-50 dark:bg-gray-950">
 
-      <!-- Timeline (Right Side) -->
+      <!-- Timeline -->
       <Timeline :logs="filteredAllLogs" @select-time="handleTimeSelection" />
 
-      <!-- Main Content: Cameras -->
+      <!-- Cameras -->
       <div class="flex-1 flex flex-col p-4 bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
 
         <div class="flex-1 flex items-start justify-center relative min-h-0 overflow-y-auto py-2">
@@ -178,7 +196,7 @@ const showAlertsOnly = ref(false)
             class="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full shadow-lg p-2" size="xl" color="neutral" variant="solid"
             @click="prevPage" />
 
-          <!-- Camera Grid (Slides) -->
+          <!-- Camera Grid -->
           <div
             class="grid gap-3 w-full px-1 py-1"
             :class="gridColsClass"
@@ -194,7 +212,6 @@ const showAlertsOnly = ref(false)
               </div>
             </TransitionGroup>
 
-            <!-- If Empty -->
             <div v-if="displayedCameras.length === 0"
               class="col-span-4 flex flex-col items-center justify-center text-gray-400 py-16">
               <UIcon name="i-heroicons-video-camera-slash" class="w-16 h-16 mb-4" />
@@ -207,7 +224,6 @@ const showAlertsOnly = ref(false)
             @click="nextPage" />
         </div>
 
-        <!-- Pagination -->
         <div v-if="totalPages > 1" class="flex justify-center mt-4 gap-2">
           <div v-for="i in totalPages" :key="i" class="w-2 h-2 rounded-full transition-colors cursor-pointer"
             :class="(i - 1) === currentPage ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-700'"
@@ -215,18 +231,19 @@ const showAlertsOnly = ref(false)
         </div>
       </div>
 
-      <!-- Logs Panel - Overlays from right side -->
+      <!-- Logs -->
       <Transition name="slide-left">
         <div v-if="isLogsOpen"
           class="absolute top-0 right-0 w-80 h-full bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl z-30">
           <div class="p-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shrink-0">
             <div class="flex flex-col">
               <h3 class="font-semibold text-gray-900 dark:text-white mb-2">
-                {{ selectedTime ? 'Logs Detalhados' : 'Logs Recentes' }}
+                {{ selectedTime ? 'Logs do Período' : 'Logs Recentes' }}
               </h3>
-              <div class="flex items-center gap-2 mb-1">
-                <UToggle v-model="showAlertsOnly" size="sm" />
-                <span class="text-xs text-gray-500">Apenas Alertas (≥ 70%)</span>
+              <div class="flex flex-col items-start gap-2 mb-1">
+                <USelectMenu v-model="logPrioritySelected" class="w-48"
+                :items="['Sem filtro', 'Moderado', 'Crítico']"></USelectMenu>
+                <div class="text-xs text-gray-300 ml-2">Filtro por nível de risco</div>
               </div>
               <span v-if="selectedTime" class="text-xs text-gray-500">
                 {{ format(selectedTime, 'dd/MM HH:mm') }} - {{ format(new Date(selectedTime.getTime() + 15 * 60000), 'HH:mm') }}
@@ -235,10 +252,10 @@ const showAlertsOnly = ref(false)
             <UButton icon="i-heroicons-x-mark" size="xs" variant="ghost" @click="isLogsOpen = false" />
           </div>
           <div class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
-            <div v-if="filteredLogs.length === 0" class="text-center text-gray-500 py-4 text-sm">
+            <div v-if="logPriorityFiltered.length === 0" class="text-center text-gray-500 py-4 text-sm">
               Nenhum log encontrado neste período.
             </div>
-            <div v-for="log in (showAlertsOnly ? filteredLogs.filter(l => l.probability >= 70) : filteredLogs)" :key="log.id"
+            <div v-for="log in logPriorityFiltered" :key="log.id"
               class="p-3 rounded-lg cursor-pointer transition-all duration-200 group"
               :class="[
                 log.probability >= 70
@@ -290,7 +307,6 @@ const showAlertsOnly = ref(false)
 
     </div>
 
-    <!-- Modais -->
     <GroupManagerModal v-if="isGroupManagerOpen" @close="isGroupManagerOpen = false" />
 
   </UDashboardPanel>
