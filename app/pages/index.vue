@@ -131,21 +131,16 @@ const clearSelection = () => {
 }
 
 // Camera Details
-const selectedCamera = ref<any | null>(null)
-const isDetailsOpen = ref(false)
-
 const openDetails = (camera: any) => {
-  selectedCamera.value = camera
-  isDetailsOpen.value = true
+  navigateTo(`/camera/${camera.id}`)
 }
-
-const selectedLog = ref<PriorityLog | null>(null)
-const isLogModalOpen = ref(false)
 
 const openLogDetails = (log: PriorityLog) => {
-  selectedLog.value = log
-  isLogModalOpen.value = true
+  navigateTo(`/log/${log.id}`)
 }
+
+// Logs Filtering
+const showAlertsOnly = ref(false)
 
 </script>
 
@@ -226,9 +221,13 @@ const openLogDetails = (log: PriorityLog) => {
           class="absolute top-0 right-0 w-80 h-full bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl z-30">
           <div class="p-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shrink-0">
             <div class="flex flex-col">
-              <h3 class="font-semibold text-gray-900 dark:text-white">
+              <h3 class="font-semibold text-gray-900 dark:text-white mb-2">
                 {{ selectedTime ? 'Logs Detalhados' : 'Logs Recentes' }}
               </h3>
+              <div class="flex items-center gap-2 mb-1">
+                <UToggle v-model="showAlertsOnly" size="sm" />
+                <span class="text-xs text-gray-500">Apenas Alertas (≥ 70%)</span>
+              </div>
               <span v-if="selectedTime" class="text-xs text-gray-500">
                 {{ format(selectedTime, 'dd/MM HH:mm') }} - {{ format(new Date(selectedTime.getTime() + 15 * 60000), 'HH:mm') }}
               </span>
@@ -239,7 +238,7 @@ const openLogDetails = (log: PriorityLog) => {
             <div v-if="filteredLogs.length === 0" class="text-center text-gray-500 py-4 text-sm">
               Nenhum log encontrado neste período.
             </div>
-            <div v-for="log in filteredLogs" :key="log.id"
+            <div v-for="log in (showAlertsOnly ? filteredLogs.filter(l => l.probability >= 70) : filteredLogs)" :key="log.id"
               class="p-3 rounded-lg cursor-pointer transition-all duration-200 group"
               :class="[
                 log.probability >= 70
@@ -292,8 +291,6 @@ const openLogDetails = (log: PriorityLog) => {
     </div>
 
     <!-- Modais -->
-    <CameraDetailsModal v-if="selectedCamera" v-model="isDetailsOpen" :camera="selectedCamera" />
-    <LogDetailsModal v-if="selectedLog" v-model="isLogModalOpen" :log="selectedLog" />
     <GroupManagerModal v-if="isGroupManagerOpen" @close="isGroupManagerOpen = false" />
 
   </UDashboardPanel>

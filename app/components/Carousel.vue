@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import type { PriorityLog } from '~/types';
+import staticImg1 from '~/../server/data/sf1.jpg'
+import staticImg2 from '~/../server/data/sf2.jpg'
 
 interface Props {
     log: PriorityLog
 }
+
+const staticImgs = [staticImg1, staticImg2];
 
 const props = defineProps<Props>()
 </script>
@@ -12,13 +16,13 @@ const props = defineProps<Props>()
   <div class="w-full flex flex-col gap-4">
     <!-- Image Display in 16:9 Aspect Ratio Container -->
     <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex justify-center items-center shadow-lg ring-1 ring-gray-200 dark:ring-gray-800">
+      <!-- v-if="log.imagesBase64?.length > 0" -->
       <UCarousel
-        v-if="log.imagesBase64?.length > 0"
         v-slot="{ item }"
         arrows
         dots
         :watch-drag="false"
-        :items="log.imagesBase64"
+        :items="log.imagesBase64?.length > 0 ? log.imagesBase64 : staticImgs"
         :ui="{
           root: 'w-full h-full relative',
           viewport: 'w-full h-full overflow-hidden',
@@ -39,10 +43,10 @@ const props = defineProps<Props>()
       </UCarousel>
       
       <!-- Fallback when there are no images -->
-      <div v-else class="text-white text-opacity-50 flex flex-col items-center justify-center p-12">
+      <!-- <div v-else class="text-white text-opacity-50 flex flex-col items-center justify-center p-12">
         <UIcon name="i-heroicons-photo" class="w-16 h-16 mb-4 opacity-50" />
         <span class="text-lg">Sem imagem disponível</span>
-      </div>
+      </div>-->
     </div>
 
     <!-- Information placed below the image to maximize view clarity -->

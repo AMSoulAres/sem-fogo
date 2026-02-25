@@ -8,9 +8,12 @@ const props = defineProps<{
 
 const emit = defineEmits(['toggle-group', 'open-details'])
 
-const { groups, createGroup } = useCameraData()
+const { groups, createGroup, activeStreams } = useCameraData()
 
 const isOnline = computed(() => props.camera.status === 'online')
+const activeStreamsForCamera = computed(() => {
+  return activeStreams.value.filter(s => s.cameraId === props.camera.id)
+})
 const prob = computed(() => props.camera.fireProbability ?? 0)
 
 // Risk tier
@@ -151,6 +154,17 @@ const addNewGroup = () => {
         :alt="camera.name"
         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
+
+      <!-- Zoom Badge -->
+      <div v-if="activeStreamsForCamera.length > 0" class="absolute top-2 right-2 flex gap-1 z-10">
+        <UBadge color="error" variant="solid" size="xs" class="animate-pulse shadow-lg flex gap-1 items-center font-bold">
+          <span class="relative flex h-2 w-2 mr-0.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+          </span>
+          ZOOM ATIVO
+        </UBadge>
+      </div>
 
       <!-- Expand icon on hover -->
       <div

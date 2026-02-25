@@ -8,6 +8,12 @@ interface UserPreferences {
 }
 
 export const useCameraData = () => {
+    // Mock active streams mapping
+    const activeStreams = ref([
+        { cameraId: 'cam-1', quadrant: 1, users: 2 },
+        { cameraId: 'cam-3', quadrant: 4, users: 1 }
+    ])
+
     // Preferences loaded from API (per-user)
     const groups = ref<string[]>([])
     const camerasPerPage = ref<number>(2)
@@ -119,7 +125,7 @@ export const useCameraData = () => {
             return {
                 ...info,
                 fireProbability: log?.fireProbability ?? 0,
-                imageUrl: log?.imagesBase64?.[0] ?? '',
+                imageUrl: '/sf1.jpg',
                 groups: info.groups
             }
         })
@@ -180,11 +186,13 @@ export const useCameraData = () => {
         groups,
         camerasPerPage,
         prefsLoaded,
+        activeStreams,
         toggleGroup,
         createGroup,
         renameGroup,
         deleteGroup,
         updateCamerasPerPage,
-        sendCameraCommand
+        sendCameraCommand,
+        fetchCameras
     }
 }
