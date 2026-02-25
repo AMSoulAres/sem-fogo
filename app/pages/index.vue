@@ -25,7 +25,6 @@ const search = ref('')
 const currentPage = ref(0)
 
 const handleLogout = async () => {
-  await $fetch('/api/auth/logout', { method: 'POST' })
   await clearSession()
   await navigateTo('/login')
 }
@@ -38,7 +37,7 @@ const userMenuItems = computed(() => [
     click: () => { updateCamerasPerPage(n); currentPage.value = 0 },
     onSelect: () => { updateCamerasPerPage(n); currentPage.value = 0 }
   })),
-  [{ label: 'Sair', icon: 'i-heroicons-arrow-right-on-rectangle', color: 'error' as const, click: handleLogout }]
+  [{ label: 'Sair', icon: 'i-heroicons-arrow-right-on-rectangle', color: 'error' as const, click: handleLogout, onSelect: handleLogout }]
 ])
 
 watch([selectedGroup, search], () => {

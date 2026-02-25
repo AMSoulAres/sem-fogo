@@ -6,6 +6,8 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
+const { fetch: fetchSession } = useUserSession()
+
 const handleLogin = async () => {
     error.value = ''
     loading.value = true
@@ -14,6 +16,7 @@ const handleLogin = async () => {
             method: 'POST',
             body: { username: username.value, password: password.value }
         })
+        await fetchSession()
         await navigateTo('/')
     } catch (e: any) {
         error.value = e?.data?.message ?? 'Erro ao autenticar. Tente novamente.'
