@@ -7,18 +7,21 @@ interface UserPreferences {
     camerasPerPage: number
 }
 
+// ── Module-level state (shared singleton across all pages) ──
+const activeStreams = ref([
+    { cameraId: 'cam-1', quadrant: 1, users: 2 },
+    { cameraId: 'cam-3', quadrant: 4, users: 1 }
+])
+
+const groups = ref<string[]>([])
+const camerasPerPage = ref<number>(2)
+const prefsLoaded = ref(false)
+const camerasInfo = ref<CameraInfo[]>([])
+const latestLogs = ref<Record<string, Log>>({})
+const logs = ref<PriorityLog[]>([])
+const dataFetched = ref(false)
+
 export const useCameraData = () => {
-    // Mock active streams mapping
-    const activeStreams = ref([
-        { cameraId: 'cam-1', quadrant: 1, users: 2 },
-        { cameraId: 'cam-3', quadrant: 4, users: 1 }
-    ])
-
-    // Preferences loaded from API (per-user)
-    const groups = ref<string[]>([])
-    const camerasPerPage = ref<number>(2)
-    const prefsLoaded = ref(false)
-
     const loadPreferences = async () => {
         try {
             const prefs = await $fetch<UserPreferences>('/api/preferences')
@@ -40,14 +43,6 @@ export const useCameraData = () => {
             console.error('Failed to save preferences', e)
         }
     }
-
-    const camerasInfo = ref<CameraInfo[]>([])
-
-    // State to store the latest log per camera for the UI cards
-    const latestLogs = ref<Record<string, Log>>({})
-
-    // Historical Logs (Accumulated from API calls)
-    const logs = ref<PriorityLog[]>([])
 
     // Fetch all available cameras
     const fetchCameras = async () => {
@@ -111,9 +106,12 @@ export const useCameraData = () => {
         if (logs.value.length > 1000) logs.value = logs.value.slice(0, 1000)
     }
 
-    // Initial fetch
-    loadPreferences()
-    fetchCameras()
+    // Initial fetch (only once)
+    if (!dataFetched.value) {
+        dataFetched.value = true
+        loadPreferences()
+        fetchCameras()
+    }
 
     // Poll every 10 minutes (600,000 ms)
     const { pause, resume, isActive } = useIntervalFn(fetchCameras, 600000)

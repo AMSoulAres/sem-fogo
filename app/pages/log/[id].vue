@@ -6,13 +6,7 @@ import mapImg from '~/../server/data/mapMock.png'
 const route = useRoute()
 const id = route.params.id as string
 
-const { logs, fetchCameras, cameras } = useCameraData()
-
-onMounted(() => {
-    if (cameras.value.length === 0) {
-        fetchCameras()
-    }
-})
+const { logs } = useCameraData()
 
 const log = computed<PriorityLog | undefined>(() => logs.value.find(l => l.id === id))
 
