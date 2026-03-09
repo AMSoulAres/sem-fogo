@@ -31,6 +31,22 @@ const riskLabel = computed(() => ({
   safe: 'BAIXO',
 }[riskTier.value]))
 
+// Header background + border classes following the same risk grouping
+const headerColorClasses = computed(() => {
+  if (riskTier.value === 'critical') {
+    return 'border-b border-red-700/60 bg-red-50 dark:bg-red-900/80'
+  }
+  if (riskTier.value === 'high' || riskTier.value === 'medium') {
+    return 'border-b border-orange-500/20 dark:border-orange-600/30 bg-orange-50 dark:bg-orange-900/12'
+  }
+  return 'border-b border-gray-200 dark:border-gray-700'
+})
+
+const headerClass = computed(() => {
+  const padding = props.compact ? 'p-1.5 sm:p-1.5' : 'p-3 sm:p-3'
+  return `${padding} ${headerColorClasses.value}`
+})
+
 // Card border glow class
 const cardBorderClass = computed(() => ({
   critical: 'outline outline-2 outline-red-600 shadow-[0_0_18px_4px_rgba(220,38,38,0.5)]',
@@ -80,7 +96,7 @@ const addNewGroup = () => {
   >
     <div class="rounded-lg overflow-hidden">
   <UCard
-    :ui="{ body: 'p-0 sm:p-0', header: compact ? 'p-1.5 sm:p-1.5 border-b border-gray-200 dark:border-gray-700' : 'p-3 sm:p-3 border-b border-gray-200 dark:border-gray-700' }"
+    :ui="{ body: 'p-0 sm:p-0', header: headerClass }"
     class=""
   >
     <template #header>
