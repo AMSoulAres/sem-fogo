@@ -1,9 +1,10 @@
 <script setup lang="ts">
 const { groups, cameras, createGroup, renameGroup, deleteGroup } = useCameraData()
 
+// TODO: Grupos ainda estão sendo salvos no localStorage, precisamos mudar para o back.
+
 const emit = defineEmits(['close'])
 
-// New group input
 const newGroupName = ref('')
 
 const handleCreate = () => {
@@ -13,7 +14,7 @@ const handleCreate = () => {
   newGroupName.value = ''
 }
 
-// Inline edit state
+// Inline edit
 const editingGroup = ref<string | null>(null)
 const editingName = ref('')
 
@@ -33,7 +34,6 @@ const cancelEdit = () => {
   editingName.value = ''
 }
 
-// Delete confirmation state
 const deletingGroup = ref<string | null>(null)
 
 const confirmDelete = (group: string) => {
@@ -41,7 +41,6 @@ const confirmDelete = (group: string) => {
   deletingGroup.value = null
 }
 
-// Count cameras per group
 const camerasInGroup = (group: string) =>
   cameras.value.filter(c => c.groups.includes(group)).length
 </script>
@@ -62,7 +61,7 @@ const camerasInGroup = (group: string) =>
         <UButton icon="i-heroicons-x-mark" size="xs" variant="ghost" color="neutral" @click="emit('close')" />
       </div>
 
-      <!-- Group List -->
+      <!-- Lista de grupos -->
       <div class="max-h-80 overflow-y-auto divide-y divide-gray-800">
         <div v-if="groups.length === 0" class="text-center text-gray-500 py-8 text-sm">
           Nenhum grupo criado.
@@ -70,7 +69,7 @@ const camerasInGroup = (group: string) =>
 
         <div v-for="group in groups" :key="group" class="px-5 py-3 flex flex-col gap-2">
 
-          <!-- Normal row -->
+          <!-- Linha do grupo -->
           <div v-if="editingGroup !== group && deletingGroup !== group" class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
               <UIcon name="i-heroicons-tag" class="w-4 h-4 text-gray-400 shrink-0" />
@@ -83,7 +82,7 @@ const camerasInGroup = (group: string) =>
             </div>
           </div>
 
-          <!-- Inline edit row -->
+          <!-- Inline edit para renomear grupo-->
           <div v-else-if="editingGroup === group" class="flex items-center gap-2">
             <UInput
               v-model="editingName"
@@ -97,7 +96,7 @@ const camerasInGroup = (group: string) =>
             <UButton icon="i-heroicons-x-mark" size="xs" variant="ghost" color="neutral" @click="cancelEdit" />
           </div>
 
-          <!-- Inline delete confirmation -->
+          <!-- Inline delete -->
           <div v-else-if="deletingGroup === group" class="flex flex-col gap-2 bg-red-950/50 border border-red-800 rounded-lg p-3">
             <p class="text-xs text-red-300">
               Excluir <strong>{{ group }}</strong>? {{ camerasInGroup(group) > 0 ? `${camerasInGroup(group)} câmera(s) serão desassociadas.` : 'Nenhuma câmera será afetada.' }}
@@ -111,7 +110,7 @@ const camerasInGroup = (group: string) =>
         </div>
       </div>
 
-      <!-- Footer: create new group -->
+      <!-- Criar novo grupo -->
       <div class="px-5 py-4 border-t border-gray-800 flex gap-2">
         <UInput
           v-model="newGroupName"

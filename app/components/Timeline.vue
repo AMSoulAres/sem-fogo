@@ -30,7 +30,7 @@ const segments = computed(() => {
 
     const maxProb = logsInSegment.reduce((max, log) => Math.max(max, log.probability), 0)
 
-    let color = 'bg-emerald-500' // Green by default
+    let color = 'bg-emerald-500' // Green default
     if (maxProb > 80) color = 'bg-red-600'
     else if (maxProb > 50) color = 'bg-orange-500'
     else if (maxProb > 20) color = 'bg-yellow-400'

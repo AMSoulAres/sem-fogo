@@ -7,6 +7,11 @@ declare module '#auth-utils' {
 
     interface UserSession {
         user: User
+        /**
+         * JWT Bearer token from the FastAPI backend.
+         * Stored server-side only — never sent to the browser.
+         */
+        backendToken: string
     }
 }
 

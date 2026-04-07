@@ -3,24 +3,42 @@ definePageMeta({ layout: false })
 
 const username = ref('')
 const password = ref('')
+const passwordConfirm = ref('')
+const fullName = ref('')
 const error = ref('')
 const loading = ref(false)
 
 const { fetch: fetchSession } = useUserSession()
 
-const handleLogin = async () => {
+const passwordMismatch = computed(() =>
+  passwordConfirm.value.length > 0 && password.value !== passwordConfirm.value
+)
+
+const isFormValid = computed(() =>
+  username.value.trim().length > 0
+  && fullName.value.trim().length > 0
+  && password.value.length >= 6
+  && password.value === passwordConfirm.value
+)
+
+const handleRegister = async () => {
+  if (!isFormValid.value) return
   error.value = ''
   loading.value = true
   try {
-    await $fetch('/api/auth/login', {
+    await $fetch('/api/auth/register', {
       method: 'POST',
-      body: { username: username.value, password: password.value }
+      body: {
+        username: username.value.trim(),
+        password: password.value,
+        fullName: fullName.value.trim()
+      }
     })
     await fetchSession()
     await navigateTo('/')
   }
   catch (e: any) {
-    error.value = e?.data?.message ?? 'Erro ao autenticar. Tente novamente.'
+    error.value = e?.data?.message ?? 'Erro ao criar conta. Tente novamente.'
   }
   finally {
     loading.value = false
@@ -46,15 +64,28 @@ const handleLogin = async () => {
       </div>
 
       <div class="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
-        <h2 class="text-lg font-semibold text-white mb-6">Entrar</h2>
+        <h2 class="text-lg font-semibold text-white mb-6">Criar Conta</h2>
 
-        <form class="space-y-4" @submit.prevent="handleLogin">
+        <form class="space-y-4" @submit.prevent="handleRegister">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1.5">Nome Completo</label>
+            <UInput
+              v-model="fullName"
+              icon="i-heroicons-user-circle"
+              placeholder="Seu nome completo"
+              size="lg"
+              class="w-full"
+              :disabled="loading"
+              autocomplete="name"
+            />
+          </div>
+
           <div>
             <label class="block text-sm text-gray-400 mb-1.5">Usuário</label>
             <UInput
               v-model="username"
               icon="i-heroicons-user"
-              placeholder="Digite seu usuário"
+              placeholder="Escolha um usuário"
               size="lg"
               class="w-full"
               :disabled="loading"
@@ -68,12 +99,30 @@ const handleLogin = async () => {
               v-model="password"
               type="password"
               icon="i-heroicons-lock-closed"
-              placeholder="••••••••"
+              placeholder="Mínimo 6 caracteres"
               size="lg"
               class="w-full"
               :disabled="loading"
-              autocomplete="current-password"
+              autocomplete="new-password"
             />
+          </div>
+
+          <div>
+            <label class="block text-sm text-gray-400 mb-1.5">Confirmar Senha</label>
+            <UInput
+              v-model="passwordConfirm"
+              type="password"
+              icon="i-heroicons-lock-closed"
+              placeholder="Repita a senha"
+              size="lg"
+              class="w-full"
+              :disabled="loading"
+              :color="passwordMismatch ? 'error' : undefined"
+              autocomplete="new-password"
+            />
+            <p v-if="passwordMismatch" class="text-xs text-red-400 mt-1 ml-1">
+              As senhas não coincidem.
+            </p>
           </div>
 
           <!-- Error -->
@@ -84,19 +133,19 @@ const handleLogin = async () => {
 
           <UButton
             type="submit"
-            label="Entrar"
+            label="Criar Conta"
             size="lg"
             color="primary"
             class="w-full justify-center"
             :loading="loading"
-            :disabled="!username || !password"
+            :disabled="!isFormValid"
           />
         </form>
 
         <p class="text-center text-sm text-gray-500 mt-6">
-          Não tem uma conta?
-          <NuxtLink to="/register" class="text-primary-400 hover:text-primary-300 font-medium transition-colors">
-            Criar conta
+          Já tem uma conta?
+          <NuxtLink to="/login" class="text-primary-400 hover:text-primary-300 font-medium transition-colors">
+            Entrar
           </NuxtLink>
         </p>
       </div>

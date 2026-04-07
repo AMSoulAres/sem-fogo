@@ -1,28 +1,31 @@
 <script setup lang="ts">
-import type { PriorityLog } from '~/types';
-import staticImg1 from '~/../server/data/sf1.jpg'
-import staticImg2 from '~/../server/data/sf2.jpg'
+import type { PriorityLog } from '~/types'
 
 interface Props {
-    log: PriorityLog
+  log: PriorityLog
 }
 
-const staticImgs = [staticImg1, staticImg2];
-
 const props = defineProps<Props>()
+
+// Imagem puxada do back.
+// Verificar se o back tem suporte a mais de uma imagem por log para o carrosel funcionar.
+const images = computed(() => {
+  if (props.log.imageUrl) return [props.log.imageUrl]
+  return []
+})
 </script>
 
 <template>
   <div class="w-full flex flex-col gap-4">
-    <!-- Image Display in 16:9 Aspect Ratio Container -->
+    <!-- Imagem 16:9-->
     <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex justify-center items-center shadow-lg ring-1 ring-gray-200 dark:ring-gray-800">
-      <!-- v-if="log.imagesBase64?.length > 0" -->
       <UCarousel
+        v-if="images.length > 0"
         v-slot="{ item }"
         arrows
         dots
         :watch-drag="false"
-        :items="log.imagesBase64?.length > 0 ? log.imagesBase64 : staticImgs"
+        :items="images"
         :ui="{
           root: 'w-full h-full relative',
           viewport: 'w-full h-full overflow-hidden',
@@ -38,23 +41,19 @@ const props = defineProps<Props>()
         class="w-full h-full"
       >
         <div class="relative w-full h-full flex items-center justify-center bg-transparent">
-          <img :src="item" class="w-full h-full object-contain">
+          <img :src="item" class="w-full h-full object-contain" :alt="`Captura da câmera ${log.cameraId}`">
         </div>
       </UCarousel>
-      
+
       <!-- Fallback when there are no images -->
-      <!-- <div v-else class="text-white text-opacity-50 flex flex-col items-center justify-center p-12">
+      <div v-else class="text-white/50 flex flex-col items-center justify-center p-12">
         <UIcon name="i-heroicons-photo" class="w-16 h-16 mb-4 opacity-50" />
         <span class="text-lg">Sem imagem disponível</span>
-      </div>-->
+      </div>
     </div>
 
-    <!-- Information placed below the image to maximize view clarity -->
+    <!-- Information placed below the image -->
     <div class="flex items-center justify-between px-1 shrink-0">
-      <div>
-        <div class="text-xs opacity-75 font-medium mb-0.5">ID da Câmera</div>
-        <div class="font-mono text-sm font-semibold tracking-tight">{{ log.cameraId }}</div>
-      </div>
       <div>
         <UBadge :color="log.probability > 70 ? 'error' : log.probability > 30 ? 'warning' : 'success'" size="lg">
           {{ log.probability }}% Probabilidade

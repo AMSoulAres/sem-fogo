@@ -1,196 +1,258 @@
-import { formatISO } from 'date-fns'
-import type { CameraInfo, Log, PriorityLog } from '~/types'
+import type { Camera, CameraInfo, Log, PriorityLog, ZoomStream } from '~/types'
 import { useIntervalFn } from '@vueuse/core'
 
 interface UserPreferences {
-    groups: string[]
-    camerasPerPage: number
+  groups: string[]
+  camerasPerPage: number
 }
-
-// ── Module-level state (shared singleton across all pages) ──
-const activeStreams = ref([
-    { cameraId: 'cam-1', quadrant: 1, users: 2 },
-    { cameraId: 'cam-3', quadrant: 4, users: 1 }
-])
 
 const groups = ref<string[]>([])
 const camerasPerPage = ref<number>(2)
 const prefsLoaded = ref(false)
 const camerasInfo = ref<CameraInfo[]>([])
-const latestLogs = ref<Record<string, Log>>({})
+
+// latestCaptures: cameraId -> Log mais recente. Mudando nome das variáveis para alinhar ao back
+// Lazy fetch de logs
+const latestCaptures = ref<Record<string, Log>>({})
 const logs = ref<PriorityLog[]>([])
 const dataFetched = ref(false)
+const loading = ref(false)
+
+/**
+ * Processos de zoom ativos (CaptureProcess no backend).
+ * Cada item é um quadrante específico de uma câmera virtual sendo capturado
+ * com uma frequência definida. NÃO é o stream principal da câmera.
+ */
+const zoomStreams = ref<ZoomStream[]>([])
+
+// ── Derived cameras (no SSR execution guard needed — always reactive) ──
+const cameras = computed<Camera[]>(() =>
+  camerasInfo.value.map((info) => {
+    const latest = latestCaptures.value[info.id]
+    return {
+      ...info,
+      fireProbability: latest?.fireProbability ?? 0,
+      imageUrl: latest?.imageUrl ?? ''
+    }
+  })
+)
 
 export const useCameraData = () => {
-    const loadPreferences = async () => {
-        try {
-            const prefs = await $fetch<UserPreferences>('/api/preferences')
-            groups.value = prefs.groups
-            camerasPerPage.value = prefs.camerasPerPage
-        } catch {
-            // fallback defaults if not logged in yet
-            groups.value = ['Favoritas', 'Zona Norte', 'Zona Sul', 'Parques']
-            camerasPerPage.value = 2
-        } finally {
-            prefsLoaded.value = true
+  // Preferences - ainda não implementado no backend - TODO: implementar
+  const loadPreferences = async () => {
+    try {
+      const prefs = await $fetch<UserPreferences>('/api/preferences')
+      groups.value = prefs.groups
+      camerasPerPage.value = prefs.camerasPerPage
+    }
+    catch {
+      groups.value = ['Favoritas']
+      camerasPerPage.value = 2
+    }
+    finally {
+      prefsLoaded.value = true
+    }
+  }
+
+  const savePreferences = async (patch: Partial<UserPreferences>) => {
+    try {
+      await $fetch('/api/preferences', { method: 'PATCH', body: patch })
+    }
+    catch (e) {
+      console.error('Falha ao salvar preferências', e)
+    }
+  }
+
+  // Cameras
+  const fetchCamerasWithoutLogs = async () => {
+    if (loading.value) return
+    loading.value = true
+    try {
+      const data = await $fetch<CameraInfo[]>('/api/cameras')
+      if (data?.length) {
+        camerasInfo.value = data
+      }
+    }
+    catch (e) {
+      console.error('Failed to fetch cameras', e)
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
+  const fetchAllLogs = async () => {
+    if (camerasInfo.value.length) {
+      await fetchLogs(camerasInfo.value)
+    }
+  }
+
+  // Usado em montagens e retentativas externas
+  const fetchCameras = async () => {
+    await fetchCamerasWithoutLogs()
+    await fetchAllLogs()
+  }
+
+  // Logs / Capturas
+  const BATCH_SIZE = 200
+
+  const fetchLogs = async (cameraList: CameraInfo[]) => {
+    for (let i = 0; i < cameraList.length; i += BATCH_SIZE) {
+      const batch = cameraList.slice(i, i + BATCH_SIZE)
+      await Promise.allSettled(
+        batch.map(camera => fetchLogsForCamera(camera))
+      )
+      if (i + BATCH_SIZE < cameraList.length) {
+        await new Promise(r => setTimeout(r, 100))
+      }
+    }
+  }
+
+  const fetchLogsForCamera = async (camera: CameraInfo) => {
+    try {
+      const response = await $fetch<{ logs: Log[] }>('/api/logs', {
+        query: {
+          cameraId: camera.id,
+          lat: camera.geoLocation.latitude,
+          lng: camera.geoLocation.longitude
         }
+      })
+
+      const cameraLogs = response?.logs ?? []
+      if (!cameraLogs.length) return
+
+      // Sort mais recente primeiro
+      const sorted = [...cameraLogs].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+
+      // Acompanha última captura da câmera (usado para imagem do card + probabilidade)
+      const newest = sorted[0]
+      if (newest) latestCaptures.value[camera.id] = newest
+
+      processLogs(sorted, camera.location)
+    }
+    catch (e) {
+      // falhas individuais de log da câmera não devem travar a UI
+      console.warn(`Logs indisponíveis para a câmera ${camera.id} (${camera.name})`, e)
+    }
+  }
+
+  // Lógica para adicionar novos logs, evitando duplicatas e ordenado. Limite de 2000 logs em memória (acho que é muito)
+  const processLogs = (newLogs: Log[], cameraLocation: string) => {
+    const existingIds = new Set(logs.value.map(l => l.id))
+
+    for (const log of newLogs) {
+      const stableId = `${log.cameraId}-${new Date(log.timestamp).getTime()}`
+      if (existingIds.has(stableId)) continue
+
+      logs.value.push({
+        id: stableId,
+        timestamp: log.timestamp,
+        probability: log.fireProbability,
+        cameraId: log.cameraId,
+        cameraLocation,
+        imageUrl: log.imageUrl,
+        geoLocation: log.geoLocation,
+        quadrantZoom: log.quadrantZoom
+      })
+      existingIds.add(stableId)
     }
 
-    const savePreferences = async (patch: Partial<UserPreferences>) => {
-        try {
-            await $fetch('/api/preferences', { method: 'PATCH', body: patch })
-        } catch (e) {
-            console.error('Failed to save preferences', e)
-        }
+    logs.value.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
+
+    if (logs.value.length > 2000) logs.value = logs.value.slice(0, 2000)
+  }
+
+  /**
+   * Busca os processos de zoom ativos (CaptureProcess) do backend.
+   * Chamado no boot e no poll — processos podem ser criados/expirados a qualquer momento.
+   */
+  const fetchZoomStreams = async () => {
+    try {
+      const data = await $fetch<ZoomStream[]>('/api/capture-processes')
+      zoomStreams.value = data ?? []
     }
-
-    // Fetch all available cameras
-    const fetchCameras = async () => {
-        try {
-            const data = await $fetch<CameraInfo[]>('/api/cameras')
-            if (data) {
-                camerasInfo.value = data
-                await fetchLogsForCameras(data)
-            }
-        } catch (e) {
-            console.error('Failed to fetch cameras', e)
-        }
+    catch (e) {
+      console.warn('Processos de zoom indisponíveis', e)
     }
+  }
 
-    const fetchLogsForCameras = async (cameras: CameraInfo[]) => {
-        const promises = cameras.map(async (camera) => {
-            try {
-                const response = await $fetch<{ logs: Log[] }>('/api/logs', {
-                    query: { cameraId: camera.id }
-                })
-
-                const cameraLogs = response.logs || []
-
-                if (cameraLogs.length > 0) {
-                    const newest = cameraLogs[0]
-                    if (newest) {
-                        latestLogs.value[camera.id] = newest
-                    }
-                    processLogs(cameraLogs, camera.name)
-                }
-            } catch (e) {
-                console.error(`Failed to fetch logs for ${camera.id}`, e)
-            }
-        })
-
-        await Promise.all(promises)
-    }
-
-    const processLogs = (newLogs: Log[], cameraName: string) => {
-        const existingIds = new Set(logs.value.map(l => l.id))
-
-        newLogs.forEach(log => {
-            const stableId = `${log.cameraId}-${new Date(log.timestamp).getTime()}`
-
-            if (!existingIds.has(stableId)) {
-                logs.value.push({
-                    id: stableId,
-                    timestamp: log.timestamp,
-                    probability: log.fireProbability,
-                    cameraId: log.cameraId,
-                    cameraName: cameraName,
-                    imagesBase64: log.imagesBase64,
-                    geoLocation: log.geoLocation
-                })
-                existingIds.add(stableId)
-            }
-        })
-
-        logs.value.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-
-        if (logs.value.length > 1000) logs.value = logs.value.slice(0, 1000)
-    }
-
-    // Initial fetch (only once)
+  // Primeira carga de dados, carrega preferências e câmeras
+  onMounted(() => {
     if (!dataFetched.value) {
-        dataFetched.value = true
-        loadPreferences()
-        fetchCameras()
+      dataFetched.value = true
+      loadPreferences()
+      fetchCameras()
+      fetchZoomStreams()
     }
+  })
 
-    // Poll every 10 minutes (600,000 ms)
-    const { pause, resume, isActive } = useIntervalFn(fetchCameras, 600000)
+  // Poll da lista de câmeras/infraestrutura a cada 10 minutos
+  useIntervalFn(fetchCamerasWithoutLogs, 600_000)
 
-    // Merged Data for UI
-    const cameras = computed<any[]>(() => {
-        return camerasInfo.value.map(info => {
-            const log = latestLogs.value[info.id]
-            return {
-                ...info,
-                fireProbability: log?.fireProbability ?? 0,
-                imageUrl: '/sf1.jpg',
-                groups: info.groups
-            }
-        })
+  // Poll de capturas (logs e atualização de imagens) a cada 1 minuto
+  useIntervalFn(fetchAllLogs, 60_000)
+
+  // Gerenciamento de grupos - ainda não implementado no backend
+  const toggleGroup = (cameraId: string, groupName: string) => {
+    const camera = camerasInfo.value.find(c => c.id === cameraId)
+    if (!camera) return
+    const idx = camera.groups.indexOf(groupName)
+    if (idx === -1) camera.groups.push(groupName)
+    else camera.groups.splice(idx, 1)
+  }
+
+  const createGroup = (name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed || groups.value.includes(trimmed)) return
+    groups.value.push(trimmed)
+    savePreferences({ groups: groups.value })
+  }
+
+  const renameGroup = (oldName: string, newName: string) => {
+    const trimmed = newName.trim()
+    if (!trimmed || trimmed === oldName || groups.value.includes(trimmed)) return
+    const idx = groups.value.indexOf(oldName)
+    if (idx === -1) return
+    groups.value[idx] = trimmed
+    camerasInfo.value.forEach((camera) => {
+      const gi = camera.groups.indexOf(oldName)
+      if (gi !== -1) camera.groups[gi] = trimmed
     })
+    savePreferences({ groups: groups.value })
+  }
 
-    const toggleGroup = (cameraId: string, groupName: string) => {
-        const camera = camerasInfo.value.find(c => c.id === cameraId)
-        if (camera) {
-            if (camera.groups.includes(groupName)) {
-                camera.groups = camera.groups.filter(g => g !== groupName)
-            } else {
-                camera.groups.push(groupName)
-            }
-        }
-    }
+  const deleteGroup = (name: string) => {
+    groups.value = groups.value.filter(g => g !== name)
+    camerasInfo.value.forEach((camera) => {
+      camera.groups = camera.groups.filter(g => g !== name)
+    })
+    savePreferences({ groups: groups.value })
+  }
 
-    const createGroup = (name: string) => {
-        if (!groups.value.includes(name)) {
-            groups.value.push(name)
-            savePreferences({ groups: groups.value })
-        }
-    }
+  const updateCamerasPerPage = (value: number) => {
+    camerasPerPage.value = value
+    savePreferences({ camerasPerPage: value })
+  }
 
-    const renameGroup = (oldName: string, newName: string) => {
-        const trimmed = newName.trim()
-        if (!trimmed || trimmed === oldName || groups.value.includes(trimmed)) return
-        const idx = groups.value.indexOf(oldName)
-        if (idx === -1) return
-        groups.value[idx] = trimmed
-        camerasInfo.value.forEach(camera => {
-            const gi = camera.groups.indexOf(oldName)
-            if (gi !== -1) camera.groups[gi] = trimmed
-        })
-        savePreferences({ groups: groups.value })
-    }
-
-    const deleteGroup = (name: string) => {
-        groups.value = groups.value.filter(g => g !== name)
-        camerasInfo.value.forEach(camera => {
-            camera.groups = camera.groups.filter(g => g !== name)
-        })
-        savePreferences({ groups: groups.value })
-    }
-
-    const updateCamerasPerPage = (value: number) => {
-        camerasPerPage.value = value
-        savePreferences({ camerasPerPage: value })
-    }
-
-    const sendCameraCommand = (cameraId: string, command: string) => {
-        console.log(`Sending command ${command} to camera ${cameraId}`)
-        return new Promise(resolve => setTimeout(resolve, 800))
-    }
-
-    return {
-        cameras,
-        logs,
-        groups,
-        camerasPerPage,
-        prefsLoaded,
-        activeStreams,
-        toggleGroup,
-        createGroup,
-        renameGroup,
-        deleteGroup,
-        updateCamerasPerPage,
-        sendCameraCommand,
-        fetchCameras
-    }
+  return {
+    cameras,
+    logs,
+    groups,
+    camerasPerPage,
+    prefsLoaded,
+    loading,
+    zoomStreams,
+    toggleGroup,
+    createGroup,
+    renameGroup,
+    deleteGroup,
+    updateCamerasPerPage,
+    fetchCameras,
+    fetchLogsForCamera,
+    fetchZoomStreams
+  }
 }

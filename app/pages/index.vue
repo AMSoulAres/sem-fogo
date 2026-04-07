@@ -3,11 +3,11 @@ import { format } from 'date-fns'
 import type { PriorityLog, Camera } from '~/types'
 
 const logsProbabilityLabel = {
-  critical: {
+  warning: {
     min: 50,
     max: 70
   },
-  warning: {
+  critical: {
     min: 70,
     max: 100
   }
@@ -277,10 +277,10 @@ const openLogDetails = (log: PriorityLog) => {
                     name="i-heroicons-exclamation-triangle"
                     class="w-5 h-5 text-orange-400 shrink-0"
                   />
-                  <span
-                    class="font-medium text-base line-clamp-1"
+                  <span class="font-medium text-base line-clamp-1 truncate"
                     :class="log.probability >= 70 ? 'text-red-200 font-semibold' : log.probability >= 31 ? 'text-orange-200' : 'text-gray-100'"
-                  >{{ log.cameraName }}</span>
+                  >{{ log.cameraLocation }}</span>
+
                 </div>
                 <UBadge
                   :color="log.probability >= 70 ? 'error' : log.probability >= 31 ? 'warning' : 'success'"
